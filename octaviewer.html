@@ -1,0 +1,3125 @@
+<!DOCTYPE html>
+<html lang="en">
+<!--INDENT:0-->
+<!-- Copyright © 2025 Hugues Hoppe; see LICENSE_TEXT below. -->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Octaviewer</title>
+  <!--
+      W3 validation: https://validator.w3.org/nu/?doc=https://hhoppe.com/private/octaflat/index.html
+      HTML5 validation: https://html5.validator.nu/?doc=https://hhoppe.com/private/octaflat/index.html
+      CSS validation: https://jigsaw.w3.org/css-validator/validator?uri=https://hhoppe.com/private/octaflat/index.html
+      javascript validation (copy-paste <script></script> content):
+      https://eslint.org/play/
+      https://jshint.com/
+      Too old: https://www.jslint.com/  (requires braces after "if"; no trailing commas, etc).
+    -->
+  <style>
+    :root {
+      --font-monospace: "Courier New", Courier, monospace;
+    }
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    #canvas {
+      display: block;
+    }
+
+    #info {
+      position: absolute;
+      top: 8px;
+      left: 100px;
+      margin-right: 20px;
+      background: rgba(0, 0, 0, 0.4);
+      color: white;
+      padding: 4px 8px;
+      padding-right: 5px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 3;
+      cursor: text;
+      transition: background 0.2s;
+    }
+    #info-toggle {
+      cursor: pointer;
+      font-size: 9px;
+      vertical-align: middle;
+      background-color: rgba(0, 0, 0, 0.4);
+      opacity: 0.7;
+      padding: 3px 6px;
+      margin: 0px;
+      margin-left: 3px;
+      border: none;
+      color: white;
+      border-radius: 4px;
+    }
+    #info-toggle:hover {
+      background-color: rgba(0, 0, 0, 1.0);
+    }
+    #info-details {
+      display: none;
+      margin-top: 10px;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 8px;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      max-width: calc(min(100vw - 40px, 1150px));
+      box-sizing: border-box;
+      font-family: var(--font-monospace);
+      font-size: 11px;
+      line-height: 1.3;
+    }
+    #info.expanded #info-details {
+      display: block;
+    }
+
+    #slider-container {
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 70%;
+      max-height: 400px;
+      width: 19px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 10px;
+      z-index: 4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    #slider-track {
+      position: relative;
+      height: calc(100% - 12px);
+      width: 5px;
+      background: #666;
+      border-radius: 3px;
+    }
+    #slider-thumb {
+      position: absolute;
+      width: 16px;
+      aspect-ratio: 1;
+      background: #fff;
+      border-radius: 50%;
+      left: 50%;
+      transform: translateX(-50%);
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+    }
+    #slider-thumb:hover {
+      background: #f0f0f0;
+    }
+    #slider-thumb:active {
+      background: #e0e0e0;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    #slider-container.disabled {
+      opacity: 0.4;
+      filter: grayscale(0.6);
+      transition: opacity 0.3s ease, filter 0.3s ease;
+    }
+    #slider-container.disabled #slider-track {
+      background: #444;
+    }
+    #slider-container.disabled #slider-thumb {
+      background: #666;
+      cursor: not-allowed;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    .slider-geomorph-boundary {
+      position: absolute;
+      left: 1px;
+      right: 1px;
+      height: 1.5px;
+      background: white;
+      opacity: 0.8;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    #button-bar {
+      position: absolute;
+      left: 38px;
+      top: 50%;
+      transform: translateY(-50%);
+      /* Width is incorrect if more than one column; https://stackoverflow.com/questions/33891709; so comment out. */
+      /* background: rgba(0, 0, 0, 0.4); */
+      /* border-radius: 4px; */
+      z-index: 5;
+      display: flex;
+      flex-flow: column wrap;
+      justify-content: flex-end;
+      row-gap: 10px;
+      max-height: 100%;
+      column-gap: 10px;
+      align-items: flex-start;
+    }
+    button {
+      margin: 0;
+      padding: 7px 6px 7px 6px;  /* Params: top right bottom left. */
+      background: #444;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      position: relative;
+      text-align: left;
+      width: auto;  /* Omit to get fixed-width buttons. */
+      white-space: nowrap;
+    }
+    @media (pointer: fine) and (hover: hover) {
+      #button-bar button::first-letter {
+        text-decoration: underline;
+      }
+    }
+    button.active {
+      background: #3a84a6;
+    }
+    button:hover {
+      background: #666;
+    }
+    button.active:hover {
+      background: #3a7cb5;
+    }
+    button:disabled {
+      background: #333;
+      color: #777;
+      cursor: not-allowed;
+    }
+    button:disabled::after {
+      background-color: #555;
+    }
+    .mode-button {
+      border-radius: 10px;
+    }
+    #demo-button, #octahedron-button {
+      margin-bottom: 8px !important;
+    }
+
+    .icon-button-container {
+      display: flex;
+      flex-direction: row;
+      gap: 6px;
+      margin: 0;
+    }
+    .icon-button-container button {
+      width: 32px;
+      aspect-ratio: 1;
+      padding: 0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon-button-container svg {
+      width: 70%;
+      aspect-ratio: 1;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .morph-connector {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .morph-connector.visible {
+      opacity: 1;
+    }
+
+    .connector-line {
+      stroke: #888;
+      stroke-width: 4.0;
+      fill: none;
+      stroke-linecap: round;
+      filter: drop-shadow(0 0 3px rgba(90, 90, 90, 0.4));
+    }
+
+    #textures-panel {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      right: 10px;
+      background: rgba(0, 0, 0, 0.0);
+      padding: 10px 0px 10px 0px;
+      border-radius: 4px;
+      display: none;
+      user-select: none;
+    }
+    .texture-container {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .texture-container:last-child {
+      margin-bottom: 0;
+    }
+    .texture-thumbnail {
+      height: min(45vh, 256px);
+      aspect-ratio: 1;
+      border: 1px solid #666;
+      background-color: #333;
+      opacity: 1.0;  /* Was 0.9 */
+      transition: all 0.2s ease-in-out;
+      cursor: pointer;
+      user-select: none;
+    }
+    .texture-container:hover .texture-thumbnail {
+      opacity: 1.0;
+      border-color: #000;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.7);
+      transform: scale(1.02);
+    }
+    .texture-label {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      padding: 3px 6px;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+    .texture-label-details {
+    }
+    .texture-close {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: rgba(0, 0, 0, 0.4);
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      z-index: 10;
+      transition: all 0.2s ease-in-out;
+    }
+    .texture-close:hover {
+      background: rgba(0, 0, 0, 0.7);
+      transform: scale(1.15);
+    }
+
+    #help-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      display: none;
+    }
+    #help-window {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      max-width: 90%;
+      max-height: 80vh;
+      background: rgba(51, 51, 51, 0.9);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      overflow-y: auto;
+    }
+    #help-title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #555;
+    }
+    #help-content {
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .help-key {
+      display: inline-block;
+      padding: 1px 7px;
+      margin-top: 4px;
+      margin-right: 5px;
+      background: #555;
+      border-radius: 3px;
+      font-family: monospace;
+      font-weight: bold;
+    }
+    .help-section {
+      margin-bottom: 15px;
+    }
+    .help-section-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: #aaa;
+    }
+    #license {
+      font-size: 65%;
+    }
+    .help-section a {
+      color: #9af;
+      text-decoration: none;
+    }
+    .help-section a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 896px) or (max-height: 520px) {
+      #info {
+        left: 100px;
+      }
+      #info-details {
+        font-size: 9px;
+      }
+      #slider-container {
+        width: 24px;
+      }
+      #slider-thumb {
+        width: 14px;
+      }
+      #button-bar {
+        left: 40px;
+        row-gap: 4px;
+      }
+      button {
+        padding: 5px 3px 5px 3px;
+        font-size: 11px;
+      }
+      .icon-button-container button {
+        width: 24px;
+      }
+      #demo-button, #octahedron-button {
+        margin-bottom: 6px !important;
+      }
+      #textures-panel {
+        right: 2px;
+      }
+      .texture-container {
+        margin-bottom: 5px;
+      }
+      .texture-label {
+        font-size: 11px;
+      }
+      .texture-label-details {
+        display: none;
+      }
+      #help-title {
+        font-size: 11px;
+      }
+      #help-content {
+        font-size: 10px;
+      }
+    }
+    @media (max-width: 896px) and (orientation: landscape) {
+      .texture-thumbnail {
+        height: 40vh;
+      }
+    }
+    @media (max-width: 896px) and (orientation: portrait) {
+      #info {
+        left: 8px;
+      }
+      #slider-container {
+        position: fixed;
+        top: unset;
+        bottom: 70px;
+        transform: none;
+        height: 200px;
+      }
+      #button-bar {
+        position: fixed;
+        top: auto;
+        bottom: 10px;
+        left: 0;
+        right: 0;
+        transform: none;
+        margin: 0 auto;  /* Center with auto margins. */
+        display: flex;
+        flex-flow: row wrap;
+        row-gap: 3px;
+        column-gap: 3px;
+        justify-content: center;
+        max-width: calc(100% - 10px);
+        border-radius: 4px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      #demo-button, #octahedron-button {
+        margin-bottom: 0px !important;
+        margin-right: 6px !important;
+      }
+
+      .morph-connector {
+        display: none;
+      }
+      #textures-panel {
+        top: 30px;
+        transform: none;
+      }
+      .texture-thumbnail {
+        height: auto;
+        width: min(40vw, 256px);
+      }
+    }
+    @media (hover: none) {
+      .texture-thumbnail {
+        opacity: 0.95;  /* More opacity because hover is unavailable. */
+      }
+      .possibly-for-ios-gallery-item:hover {
+        transform: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        border-color: rgba(0, 0, 0, 0.12);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="canvas"></canvas>
+  <div id="info">
+    <span id="info-summary">Loading model...</span>
+    <button id="info-toggle" type="button" title="Show/hide detailed model info (i)">▼</button>
+    <div id="info-details"></div>
+  </div>
+  <div id="slider-container">
+    <div id="slider-track">
+      <div id="slider-thumb"></div>
+    </div>
+  </div>
+  <div id="button-bar"><!-- dynamically created --></div>
+  <div id="textures-panel"></div>
+  <svg class="morph-connector" id="morph-connector" width="100%" height="100%">
+    <line class="connector-line" id="connector-line" x1="0" y1="0" x2="0" y2="0" />
+  </svg>
+  <div id="help-overlay">
+    <div id="help-window">
+      <div id="help-title">Octaviewer Help</div>
+      <div id="help-content"><!-- dynamically created --></div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    /* jshint
+       esversion: 11, bitwise: true, browser: true, eqeqeq: true, forin: true,
+       freeze: true, nonbsp: true, nonew: true, notypeof: false, shadow: false,
+       strict: false, undef: true, unused: true, varstmt: true
+    */
+
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+    import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+    import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+    import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+
+    const LICENSE_TEXT = `
+      <p>Copyright © ${new Date().getFullYear()} Hugues Hoppe</p>
+      <p>This project is licensed under the MIT License:</p>
+      <p>Permission is hereby granted, free of charge, to any person obtaining a copy
+      of this software and associated documentation files (the "Software"), to deal
+      in the Software without restriction, including without limitation the rights
+      to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+      copies of the Software, and to permit persons to whom the Software is
+      furnished to do so, subject to the following conditions:</p>
+      <p>The above copyright notice and this permission notice shall be included in all
+      copies or substantial portions of the Software.</p>
+      <p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+      IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+      FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+      AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+      LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+      SOFTWARE.</p>
+      <p>Source:
+        <a href="https://github.com/hhoppe/octaviewer" target="_blank" style="color: #9af;">
+          https://github.com/hhoppe/octaviewer</a></p>
+    `;
+
+    const HELP_TEXT = `
+      This viewer loads a 3D model from a <code>*.glb</code> file.
+      The model includes (1) vertex <code>parentIndex</code> information that encodes a progressive mesh
+      and (2) vertex <code>uv</code> coordinates that encode a spherical parameterization.
+      At runtime, the viewer computes from the progressive mesh a sequence of geomorphs
+      to transition among levels of detail.
+      Toggle among several morphing, texturing, shading, and lighting modes
+      to reveal the fine-scale surface detail.
+      Press the <code>Textures</code> button and click on a thumbnail to view a texture image in a new tab.
+    `;
+
+    const TAU = 2 * Math.PI;
+    const IS_IOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
+    const SVG_INFO = `
+      <svg viewBox="2 2 20 20" fill="none" stroke="white" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <line x1="12" y1="16" x2="12" y2="12" />
+        <line x1="12" y1="8" x2="12.01" y2="8" />
+      </svg>`;
+    const SVG_HELP = `
+      <svg viewBox="2 2 20 20" fill="none" stroke="white" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M10 9a2 2 0 1 1 4 1c0 1.5-2 1.5-2 3" />
+        <circle cx="12" cy="16" r="1.2" fill="white" stroke="none"/>
+      </svg>`;
+    const SVG_FULLSCREEN = `
+      <svg viewBox="2 2 20 20" fill="none" stroke="white" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+        <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+        <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+        <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+      </svg>`;
+    const SVG_RESET = `
+      <svg viewBox="3 3 18 18" fill="none" stroke="white" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 12a6 6 0 1 1 6 6" />
+        <polyline points="6 8 6 12 10 12" />
+      </svg>`;
+
+    window.puppeteerReady = false;
+    window.capturedFrames = 0;
+    window.frameCount = 0;
+
+    const app = {
+      CONFIG: {
+        debug: false,
+        model: {
+          defaultModel: 'loewenfeld.octaflat.glb',
+          enableCaching: true,  // Even Control-shift-R was insufficient to bypass the browser cache for *.glb. ??
+          presimplificationVertexCount: 0,
+        },
+        material: {
+          doubleSide: false,  // True is best for meshes with boundaries, but it results in some morph artifacts.
+          varnish: {
+            false: {
+              color: [1.0, 1.0, 1.0],
+              metalness: 0.2,  // A nonzero value is required for any specularity.
+              roughness: 0.4,  // Lower values are more specular; ~ sqrt(clamp(1 - (Ns / 1000), 0, 1)) from *.mtl.
+              lightIntensityScale: 1.5,
+            },
+            true: {
+              color: [1.0, 1.0, 1.0],
+              metalness: 0.25,
+              roughness: 0.12,  // Note that 0.05 is very specular.
+              lightIntensityScale: 1.5,
+            },
+          },
+          albedoMapBaseColor: [1.0, 1.0, 1.0],
+        },
+        texture: {
+          anisotropy: 16,
+          downsampleToGlMaxSize: true,
+          featherBoundaries: false,  // It seems too costly at load-time for large textures.
+        },
+        camera: {
+          nearMin: 0.001,
+          nearDistanceScale: 0.01,
+          farDistanceScale: 100.0,
+          initialPosition: [0.0, 0.0, 5.0],  // World space (right, up, towards_viewer).
+          defaultFov: 45.0,
+          rockingPeriod: 5.0,    // Rocking motion period in seconds.
+          rockingDegrees: 30.0,  // Arc in degrees.
+        },
+        rendering: {
+          antialias: true,
+          background: 'hsl(0, 0%, 96%)',  // Or 0xf5f5f5 or 'rgb(245, 245, 245)'.
+          edges: {
+            color: 0x000000,
+            linewidth: 0.5,  // In pixel width; useful for high-DPI displays.
+          },
+          uvGrid: {
+            textureSize: 2048,
+            checkerboardTileSizeInPixels: 16,
+            darkGray: 'rgb(15, 15, 15)',
+          },
+          visualizeInterpolatedVertexNormal: false,
+        },
+        lighting: {
+          ambientLightIntensity: {
+            noAlbedoMap: 0.0,
+            albedoMap: 0.5,
+            uvGrid: 1.2,
+          },
+          directionalLightIntensity: {
+            noAlbedoMap: 1.0,
+            albedoMap: 3.5,
+            uvGrid: 1.0,
+          },
+          directionalLights: [
+            {
+              color: 0xffffff,
+              intensity: 0.7,
+              positionRatio: [3.0, 1.5, 2.0],  // Camera space (right, up, behind).
+            },
+            {
+              color: 0xffffd0,
+              intensity: 0.5,
+              positionRatio: [-1.0, 6.0, 4.0],
+            },
+          ],
+          lumicyclePeriod: 5.0,  // In seconds.
+        },
+        thumbnails: {
+          useGpuDownsampling: false,  // It is no faster, and also blurrier.
+        },
+        morph: {  // All durations in seconds.
+          defaultMinVertexCount: 0,
+          overrideMinVertexCount: 0,
+          simplificationFactor: 0.7,
+          geomorphs: {
+            duration: 5.0,
+            exitDuration: 0.4,
+          },
+          sphere: {
+            duration: 2.5,
+            exitDuration: 0.2,
+          },
+          octahedron: {
+            duration: 2.5,
+            exitDuration: 0.2,
+          },
+        },
+        demo: {
+          keySequences: [
+            { keys: 'rl' },                // This first sequence is special: initialization and never repeated.
+            { keys: '', pause: 3.0 },      //
+            { keys: 'e', pause: 2.0 },     // Edges on.
+            { keys: 'g' },                 // Start geomorphs fine-to-coarse.
+            { keys: '', pause: 1.0 },      // Pause at coarse mesh.
+            { keys: 'e', pause: 1.0 },     // Edges off.
+            { keys: '' },                  // Continue geomorphs coarse-to-fine.
+            { keys: '', pause: 1.0 },      // Pause at fine mesh.
+            { keys: 's' },                 // Start sphere morph fine-to-coarse.
+            { keys: '', pause: 1.0 },      // Pause at coarse mesh.
+            { keys: 'na', pause: 1.0 },    // Normal off, albedo off.
+            { keys: '' },                  // Continue sphere morph coarse-to-fine.
+            { keys: '', pause: 1.5 },      // Pause at fine mesh.
+            { keys: 'nt', pause: 2.5 },    // Normal on, texture panel on.
+            { keys: 'au', pause: 2.0 },    // Albedo on, uvgrid on.
+            { keys: 'o' },                 // Start octahedron morph fine-to-coarse.
+            { keys: '', pause: 2.0 },      // Pause at coarse mesh.
+            { keys: 'u', pause: 2.0 },     // Uvgrid off.
+            { keys: '' },                  // Continue octahedron morph coarse-to-fine.
+            { keys: '', pause: 2.0 },      // Pause at fine mesh.
+            { keys: 'o' },                 // Stop octahedron morph.
+            { keys: 't', pause: 1.0 },     // Texture panel off.
+          ],
+        },
+        buttons: {
+          // Each UI entry is either a text-label button, an svg icon button, or an invisible keyboard shortcut.
+          // Also, each entry may have a binary state (if `active` is defined).
+
+          // Text buttons:
+          demo: { key: 'd', label: 'Demo', active: false, desc: 'Automatically cycle across many modes',
+                  onClick() { this.updateDemo(); } },
+          geomorphs: { key: 'g', label: 'Geomorphs', active: false, desc: 'Morph between geometric levels of detail',
+                       type: 'mode', onClick() { this.updateGeomorphs(); } },
+          sphere: { key: 's', label: 'Sphere', active: false, desc: 'Morph to/from sphere, revealing parameterization',
+                    type: 'mode', onClick() { this.updateSphere(); } },
+          octahedron: { key: 'o', label: 'Octahedron', active: false,
+                        desc: 'Morph to/from flat octahedron, revealing parameterization',
+                        type: 'mode', onClick() { this.updateOctahedron(); } },
+          textures: { key: 't', label: 'Textures', active: false, desc: 'Toggle texture thumbnails',
+                      onClick() { this.updateTexturesPanel(); } },
+          albedo: { key: 'a', label: 'Albedo', active: true, desc: 'Toggle albedo (color) texture if present',
+                    onClick() { this.updateMaterial(); } },
+          normal: { key: 'n', label: 'Normal', active: true, desc: 'Toggle normal-map texture',
+                    onClick() { this.updateMaterial(); } },
+          varnish: { key: 'v', label: 'Varnish', active: true, desc: 'Toggle specular varnish of the material',
+                     onClick() { this.updateMaterial(); } },
+          edges: { key: 'e', label: 'Edges', active: false, desc: 'Toggle mesh edges',
+                   onClick() { this.updateEdges(); } },
+          uvgrid: { key: 'u', label: 'UvGrid', active: false, desc: 'Toggle UV parametric grid visualization',
+                    onClick() { this.updateUvGrid(); } },
+          lumicycle: { key: 'l', label: 'Lumicycle', active: false, desc: 'Toggle rotation of the lights',
+                       okInDemo: true, onClick() { this.updateLumicycle(); } },
+          rocking: { key: 'r', label: 'Rocking', active: false, desc: 'Toggle rocking animation of the camera',
+                     okInDemo: true, onClick() { this.applyRockingRotation(-this.rockingPhase); } },
+
+          // Icon buttons:
+          info: { key: 'i', svg: SVG_INFO, active: false, desc: 'Toggle model information', okInDemo: true,
+                  onClick() { this.updateInfoDetails(); } },
+          help: { key: '?', svg: SVG_HELP, active: false, desc: 'Toggle the help window', okInDemo: true,
+                  onClick() { this.updateHelpWindow(); } },
+          fullscreen: { key: 'f', svg: SVG_FULLSCREEN, active: false, desc: 'Toggle fullscreen mode', okInDemo: true,
+                        onClick() { this.toggleFullscreen(); } },
+          reset: { key: 'z', svg: SVG_RESET, desc: 'Reset the camera view', okInDemo: true,
+                   onClick() { this.updateReset(); } },
+
+          // Additional keyboard shortcuts:
+          home: { key: 'Home', desc: 'Move slider to top',
+                  onClick() { this.deactivateMorph(1.0); } },
+          end: { key: 'End', desc: 'Move slider to bottom',
+                 onClick() { this.deactivateMorph(0.0); } },
+        },
+      },
+
+      // Variables:
+      buttonConfig: {},
+      mainCanvas: document.getElementById('canvas'),
+      infoDiv: document.getElementById('info'),
+      infoSummary: document.getElementById('info-summary'),
+      infoDetails: document.getElementById('info-details'),
+      infoToggle: document.getElementById('info-toggle'),
+      sliderContainer: document.getElementById('slider-container'),
+      sliderTrack: document.getElementById('slider-track'),
+      sliderThumb: document.getElementById('slider-thumb'),
+      sliderValue: 1.0,
+      sliderActive: false,
+      morphState: null,
+      buttonBar: document.getElementById('button-bar'),
+      texturesPanel: document.getElementById('textures-panel'),
+      helpOverlay: document.getElementById('help-overlay'),
+      helpContent: document.getElementById('help-content'),
+      needsRender: false,
+      clickTarget: null,  // Record event target at mousedown, to match with target on mouseup.
+      lumicyclePhase: 0,
+      rockingPhase: 0,
+      uvGridTexture: null,
+      maxModelDim: 1.0,  // Placeholder value.
+      mesh: null,
+      octaInfo: null,
+      cameraData: null,
+      centerPoint: null,
+      lastInteractionTime: Date.now() / 1000,
+      frameTimeHistory: [],
+      frameTimeHistoryMaxLength: 10,
+      meanFrameTime: 1 / 60,
+      morphGeometryCache: {},  // Keyed by morphState.
+      lineTopologyCache: {},  // Keyed by mesh vertex count.
+      thumbnailCanvasOfTextureKey: {},
+      demoIndex: 0,
+      demoPauseStartTime: null,
+      renderCount: 0,
+
+      init() {
+        window.addEventListener('error', (event) => {
+          console.error('Error caught:', event.error);
+          this.infoSummary.textContent = 'Error: ' + event.error.message;
+          this.infoSummary.style.color = 'red';
+          this.requestRender();
+        });
+
+        for (const [key, config] of Object.entries(this.CONFIG.buttons))
+          this.buttonConfig[key] = { ...config };
+        this.suppressSomeWebglWarnings();
+        this.parseUrlParams();
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(this.CONFIG.rendering.background);
+
+        const fov = this.CONFIG.camera.defaultFov;
+        this.camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 0.01, 2000);
+        this.camera.position.set(...this.CONFIG.camera.initialPosition);
+        this.scene.add(this.camera);
+
+        this.renderer = new THREE.WebGLRenderer({
+          canvas: this.mainCanvas,
+          antialias: this.CONFIG.rendering.antialias,
+        });
+        this.updateRendererSize();
+
+        this.createOrbitControls();
+        this.createSlider();
+        this.createButtons();
+        this.createLights();
+        this.createEventListeners();
+        this.startLoadingGridUvToSphere();
+        this.loadModel();
+        this.renderLoop();
+      },
+
+      suppressSomeWebglWarnings() {
+        const originalWarn = console.warn;
+        console.warn = (...args) => {
+          const message = args.join(' ');
+          if (/THREE\.WebGLProgram.*warning X3557: loop only executes for 1 iteration/.test(message)) return;
+          originalWarn.apply(console, args);
+        };
+      },
+
+      parseUrlParams() {
+        const searchParams = new URLSearchParams(window.location.search);
+
+        for (const [param] of searchParams) {
+          const specialRecognizedParams = new Set(['model', 'automate', 'frames']);
+          if (!param.startsWith('config.') && !specialRecognizedParams.has(param) && !(param in this.buttonConfig))
+            console.warn(`Unrecognized URL parameter: '${param}'`);
+        }
+
+        this.parseConfigOverrides(searchParams);
+
+        this.modelFile = searchParams.get('model') || this.CONFIG.model.defaultModel;
+        this.modelFile = this.transformFileHostUrl(this.modelFile);
+        this.modelName = this.modelFile.split('/').pop();
+        document.title = `${this.modelName} - Octaviewer`;
+
+        this.automationMode = this.paramIsTrue(searchParams.get('automate'));
+        window.frameCount = parseInt(searchParams.get('frames') || '60', 10);
+
+        // Check the URL for parameters that set the initial button states.
+        for (const [id, config] of Object.entries(this.buttonConfig)) {
+          if (config.active === undefined) continue;
+          const paramValue = searchParams.get(id);
+          if (paramValue !== null && id !== 'fullscreen')
+            config.active = this.paramIsTrue(paramValue);
+        }
+      },
+
+      parseConfigOverrides(searchParams) {
+        for (const [param, value] of searchParams) {
+          try {
+            if (!param.startsWith('config.')) continue;
+            const keys = param.split('.').slice(1);  // Omit 'config.' prefix.
+            let current = this.CONFIG;
+
+            for (const key of keys.slice(0, -1)) {
+              if (!(key in current) || typeof current[key] !== 'object') throw Error(`Key '${key}' invalid`);
+              current = current[key];
+            }
+
+            const key = keys.at(-1);
+            if (!(key in current) || current[key].constructor === 'object') throw Error(`Final key '${key}' invalid`);
+            current[key] = this.parseValue(value);
+          } catch (error) {
+            console.warn(`Failed to set config parameter '${param}':`, error);
+          }
+        }
+      },
+
+      parseValue(value) {
+        if (value === 'true') return true;
+        if (value === 'false') return false;
+
+        const numValue = Number(value);
+        if (!isNaN(numValue) && value.trim() !== '') return numValue;
+
+        if (value[0] === '[' && value.at(-1) === ']') {
+          const parts = value.slice(1, -1).split(',');
+          if (parts.every(part => !isNaN(Number(part)) && part.trim() !== '')) return parts.map(Number);
+          throw Error(`Cannot parse array value '${value}'`);
+        }
+
+        return value;  // A string.
+      },
+
+      paramIsTrue(paramValue) {
+        return paramValue === null ? false : ['true', '1', 'yes', 'on'].includes(paramValue.toLowerCase());
+      },
+
+      createElement(tag, properties={}) {
+        return Object.assign(document.createElement(tag), properties);
+      },
+
+      transformFileHostUrl(url) {
+        let modifiedUrl = url;
+        if (modifiedUrl.indexOf('www.dropbox.com') >= 0) {
+          modifiedUrl = modifiedUrl.replace('www.dropbox.com', 'dl.dropbox.com');
+        } else if (modifiedUrl.indexOf('github.com') >= 0) {
+          modifiedUrl = modifiedUrl.replace('github.com', 'raw.githubusercontent.com');
+          modifiedUrl = modifiedUrl.replace('/blob/', '/');
+        }
+        return modifiedUrl;
+      },
+
+      updateRendererSize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
+        if (this.lineEdges)
+          this.lineEdges.material.resolution.set(window.innerWidth, window.innerHeight);
+        this.updateMorphConnector();
+        this.requestRender();
+      },
+
+      createOrbitControls() {
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.zoomSpeed = 3;  // Default 1.  Can be negative.
+        this.controls.zoomToCursor = true;
+
+        this.controls.addEventListener('start', () => {
+          this.rockingPhase = 0;  // We do not snap back to original non-rocking state.
+          if (this.buttonConfig.rocking.active) this.pressButton(this.buttonConfig.rocking);
+          this.requestRender();
+        });
+        this.controls.addEventListener('change', () => this.updateCamera());
+        this.controls.addEventListener('end', () => this.requestRender());
+      },
+
+      createSlider() {
+        this.updateSliderUi();
+
+        this.sliderContainer.addEventListener('mousedown', this.startSliderDrag.bind(this));
+        document.addEventListener('mousemove', this.dragSlider.bind(this));
+        document.addEventListener('mouseup', this.endSliderDrag.bind(this));
+
+        this.sliderContainer.addEventListener('touchstart', (event) => {
+          event.preventDefault();
+          this.startSliderDrag(event.touches[0]);
+        });
+        document.addEventListener('touchmove', (event) => {
+          if (this.sliderActive) {
+            event.preventDefault();
+            this.dragSlider(event.touches[0]);
+          }
+        });
+        document.addEventListener('touchend', this.endSliderDrag.bind(this));
+        document.addEventListener('touchcancel', this.endSliderDrag.bind(this));
+      },
+
+      getSliderDimensions() {
+        const containerRect = this.sliderContainer.getBoundingClientRect();
+        const trackRect = this.sliderTrack.getBoundingClientRect();
+        const thumbHeight = this.sliderThumb.getBoundingClientRect().height;
+        const sliderTrackHeight = trackRect.height - thumbHeight;
+        const sliderTrackTop = trackRect.top + thumbHeight / 2;
+        return { containerRect, trackRect, thumbHeight, sliderTrackHeight, sliderTrackTop };
+      },
+
+      updateSliderGeomorphBoundaries() {
+        for (const boundaryLine of this.sliderContainer.querySelectorAll('.slider-geomorph-boundary'))
+          boundaryLine.remove();
+        if (this.morphState !== 'geomorphs' || !this.geomorphs || this.geomorphs.length <= 1) return;
+
+        const { containerRect, trackRect, thumbHeight, sliderTrackHeight } = this.getSliderDimensions();
+        const trackTopRelativeToContainer = trackRect.top - containerRect.top + thumbHeight / 2;
+        const numGeomorphs = this.geomorphs.length;
+
+        for (let i = 0; i <= numGeomorphs; i++) {
+          const boundaryValue = i / numGeomorphs;
+          const boundaryTop = trackTopRelativeToContainer + sliderTrackHeight * boundaryValue;
+          const boundaryLine = this.createElement('div', { className: 'slider-geomorph-boundary' });
+          boundaryLine.style.top = `${boundaryTop}px`;
+          this.sliderContainer.appendChild(boundaryLine);
+        }
+      },
+
+      setSliderValue(value) {
+        this.sliderValue = Math.min(Math.max(value, 0.0), 1.0);
+        this.updateSliderUi();
+        this.onSliderValueChange();
+      },
+
+      startSliderDrag(event) {
+        if (!this.morphState) return;
+        this.morphDuration = 0.0;
+        this.buttonConfig[this.morphState].active = false;
+        this.updateButtons();
+        this.sliderActive = true;
+        this.dragSlider(event);
+        this.updateEdges();
+      },
+
+      dragSlider(event) {
+        if (!this.sliderActive) return;
+        this.stopDemoIfOngoing();
+        const { sliderTrackHeight, sliderTrackTop } = this.getSliderDimensions();
+        const value0 = (event.clientY - sliderTrackTop) / sliderTrackHeight;
+        this.sliderValue = 1.0 - Math.min(Math.max(value0, 0.0), 1.0);
+        this.updateSliderUi();
+        this.onSliderValueChange();
+      },
+
+      endSliderDrag() {
+        this.sliderActive = false;
+        this.updateEdges();
+        this.setInfo();
+      },
+
+      updateSliderUi() {
+        const { sliderTrackHeight } = this.getSliderDimensions();
+        const top = sliderTrackHeight * (1.0 - this.sliderValue);
+        this.sliderThumb.style.top = `${top}px`;
+      },
+
+      // These next functions spend progressively more time near the end values [0.0, 1.0].
+      smoothStep(value) {
+        return value * value * (3.0 - 2.0 * value);
+      },
+
+      smootherStep(value) {
+        return value * value * value * (value * (value * 6.0 - 15.0) + 10.0);
+      },
+
+      easeInOutCubic(value) {
+        return value < 0.5 ? 4 * value**3 : 1 - 4 * (1 - value)**3;
+      },
+
+      easeInOutQuartic(value) {
+        return value < 0.5 ? 8 * value**4 : 1 - 8 * (1 - value)**4;
+      },
+
+      smoothFunction(value) {
+        return this.easeInOutCubic(value);
+      },
+
+      getInfluence0() {
+        return this.morphState === 'geomorphs' ? this.determineGeomorph().influence0 :
+          this.smoothFunction(1.0 - this.sliderValue);
+      },
+
+      onSliderValueChange() {
+        if (!this.mesh) return;
+        this.updateEdges();
+        if (this.morphState === 'geomorphs') this.updateGeometry(this.selectGeomorphGeometry());
+        const influence0 = this.getInfluence0();
+        this.mesh.morphTargetInfluences[0] = influence0;
+        if (this.buttonConfig.edges.active && this.wireframeMesh?.morphTargetInfluences)
+          this.wireframeMesh.morphTargetInfluences[0] = influence0;
+      },
+
+      createButtons() {
+        this.buttonBar.innerHTML = '';
+        const iconButtonContainer = this.createElement('div', { className: 'icon-button-container' });
+
+        for (const [id, config] of Object.entries(this.buttonConfig)) {
+          if (id === 'fullscreen' && IS_IOS) continue;
+
+          if (config.label || config.svg) {
+            const isIcon = config.label === undefined;
+
+            config.button = this.createElement('button', {
+              id: id + '-button',
+              title: config.desc + (config.key ? ` (${config.key})` : ''),
+            });
+            const { button } = config;
+
+            if (isIcon) {
+              button.className = 'icon-button';
+              button.innerHTML = config.svg;
+            } else {
+              button.textContent = config.label;
+              if (config.type) button.classList.add(`${config.type}-button`);
+            }
+            if (config.active !== undefined)
+              button.classList.toggle('active', config.active);
+
+            button.addEventListener('click', () => {
+              this.pressButton(config, !config.okInDemo);
+            });
+
+            const parent = isIcon ? iconButtonContainer : this.buttonBar;
+            parent.appendChild(button);
+          }
+
+          if (config.key) {
+            document.addEventListener('keydown', (event) => {
+              const noModifiers = !event.ctrlKey && !event.altKey && !event.metaKey;
+              if (event.key === config.key && noModifiers && !config.button?.disabled) {
+                event.preventDefault();
+                this.pressButton(config, !config.okInDemo);
+              }
+            });
+          }
+        }
+
+        this.buttonBar.appendChild(iconButtonContainer);
+        this.updateButtons();
+      },
+
+      pressButton(config, interruptDemo=false) {
+        if (0) console.log('pressButton', { label: config.label, active: config.active, interruptDemo });
+        if (interruptDemo && config !== this.buttonConfig.demo)
+          this.stopDemoIfOngoing();
+        if (config.active !== undefined) {
+          config.active = !config.active;
+          config.button.classList.toggle('active', config.active);
+        }
+        config.onClick.call(this);
+        this.updateButtons();
+        this.requestRender();
+      },
+
+      updateButtons() {
+        for (const config of Object.values(this.buttonConfig)) {
+          if (config.button && config.active !== undefined)
+            config.button.classList.toggle('active', config.active);
+        }
+
+        this.sliderContainer.classList.toggle('disabled', this.morphState === null);
+        this.updateSliderGeomorphBoundaries();
+        this.updateMorphConnector();
+      },
+
+      updateMorphConnector() {
+        const connector = document.getElementById('morph-connector');
+        if (this.morphState) {
+          const activeButton = this.buttonConfig[this.morphState].button;
+          const buttonRect = activeButton.getBoundingClientRect();
+          const { containerRect } = this.getSliderDimensions();
+          const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+          const sliderConnectionY = clamp(buttonRect.top + buttonRect.height / 2,
+                                          containerRect.top + containerRect.height * 0.02,
+                                          containerRect.top + containerRect.height * 0.98);
+          const line = document.getElementById('connector-line');
+          line.setAttribute('x1', buttonRect.left);
+          line.setAttribute('y1', buttonRect.top + buttonRect.height / 2);
+          line.setAttribute('x2', containerRect.right);
+          line.setAttribute('y2', sliderConnectionY);
+          connector.classList.add('visible');
+        } else {
+          connector.classList.remove('visible');
+        }
+      },
+
+      createLights() {
+        this.ambientLight = new THREE.AmbientLight(0xffffff, 0.0);
+        this.scene.add(this.ambientLight);
+
+        this.lights = this.CONFIG.lighting.directionalLights.map(lightConfig => {
+          const light = new THREE.DirectionalLight(lightConfig.color, lightConfig.intensity);
+          const positionRatio = new THREE.Vector3(...lightConfig.positionRatio);
+          return { light, positionRatio };
+        });
+
+        for (const lightObj of this.lights) {
+          lightObj.originalIntensity = lightObj.light.intensity;
+          // We let the light be a child of the camera so that its position is relative to the camera view.
+          this.camera.add(lightObj.light);
+        }
+      },
+
+      updateLights() {
+        const { ambientLightIntensity } = this.CONFIG.lighting;
+        this.ambientLight.intensity = (this.buttonConfig.uvgrid.active ? ambientLightIntensity.uvGrid :
+                                       this.buttonConfig.albedo.active ? ambientLightIntensity.albedoMap :
+                                       ambientLightIntensity.noAlbedoMap);
+
+        const { directionalLightIntensity } = this.CONFIG.lighting;
+        const directionalIntensityScale = (this.buttonConfig.uvgrid.active ? directionalLightIntensity.uvGrid :
+                                           this.buttonConfig.albedo.active ? directionalLightIntensity.albedoMap :
+                                           directionalLightIntensity.noAlbedoMap);
+        const cameraDistance = this.camera.position.length();
+        const scale = cameraDistance;
+        const rotationMatrix = new THREE.Matrix4().makeRotationZ(this.lumicyclePhase);
+        for (const lightObj of this.lights) {
+          const intensityScale = (this.buttonConfig.varnish.active ?
+                                  this.CONFIG.material.varnish.true.lightIntensityScale :
+                                  this.CONFIG.material.varnish.false.lightIntensityScale) * directionalIntensityScale;
+          lightObj.light.intensity = lightObj.originalIntensity * intensityScale;
+          lightObj.light.position.copy(lightObj.positionRatio).multiplyScalar(scale).applyMatrix4(rotationMatrix);
+        }
+
+        this.requestRender();
+      },
+
+      createEventListeners() {
+        window.addEventListener('resize', () => { this.updateRendererSize(); });
+
+        this.mainCanvas.addEventListener('pointerdown', (event) => {
+          this.clickTarget = event.target;
+          // Capture the pointer to prevent drag operations.
+          this.mainCanvas.setPointerCapture(event.pointerId);
+        });
+
+        document.addEventListener('click', (event) => {
+          // If we mousedown on the canvas and release over a UI element, do not click it.
+          if (this.clickTarget === this.mainCanvas && event.target !== this.mainCanvas) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        });
+
+        document.addEventListener('contextmenu', (event) => {
+          // If we right-drag on the canvas and release over a UI element, do not bring up its context menu.
+          if (event.target !== this.clickTarget) event.preventDefault();
+        });
+
+        this.mainCanvas.addEventListener('selectstart', (event) => { event.preventDefault(); });
+        this.mainCanvas.addEventListener('dragstart', (event) => { event.preventDefault(); });
+
+        this.infoToggle.addEventListener('click', () => { this.pressButton(this.buttonConfig.info); });
+
+        this.helpOverlay.addEventListener('click', () => { this.pressButton(this.buttonConfig.help); });
+
+        document.addEventListener('fullscreenchange', () => {
+          this.buttonConfig.fullscreen.active = Boolean(document.fullscreenElement);
+          this.updateButtons();
+          this.updateRendererSize();
+        });
+
+        this.renderer.domElement.addEventListener('webglcontextlost', (event) => {
+          event.preventDefault();
+          // Simple fallback solution: just reload the page.
+          window.location.reload();
+        }, false);
+      },
+
+      immediatelyStopCamera() {
+        const oldDampingFactor = this.controls.dampingFactor;
+        this.controls.dampingFactor = 1.0;  // Temporarily set to maximum damping.
+        this.controls.update();
+        this.controls.dampingFactor = oldDampingFactor;
+      },
+
+      resetView() {
+        this.immediatelyStopCamera();
+        if (this.cameraData) {
+          this.camera.position.copy(this.cameraData.position.clone().sub(this.centerPoint));
+          this.camera.fov = Math.atan(this.cameraData.zoom) * 2 * (360 / TAU);
+          this.updateCamera();
+        }
+        this.model.position.copy(this.centerPoint.clone().negate());
+        this.controls.target.set(0, 0, 0);
+        this.requestRender();
+      },
+
+      // Extract {forward, left, up, position, zoom} from string with format 'F 0  1 0 0  0 1 0  0 0 1  0 0 0  0'.
+      parseCameraString(cameraString) {
+        const parts = cameraString.trim().split(/\s+/);  // Split by whitespace, filtering out empty entries.
+        if (parts.length !== 15 || parts[0] !== 'F' || (parts[1] !== '0' && parts[1] !== '1'))
+          throw Error(`Invalid camera string format: '${cameraString}'`);
+        const forward = new THREE.Vector3(parseFloat(parts[2]), parseFloat(parts[3]), parseFloat(parts[4]));
+        const left = new THREE.Vector3(parseFloat(parts[5]), parseFloat(parts[6]), parseFloat(parts[7]));
+        const up = new THREE.Vector3(parseFloat(parts[8]), parseFloat(parts[9]), parseFloat(parts[10]));
+        const position = new THREE.Vector3(parseFloat(parts[11]), parseFloat(parts[12]), parseFloat(parts[13]));
+        const zoom = parseFloat(parts[14]);
+        return { forward, left, up, position, zoom };
+      },
+
+      updateInfoDetails() {
+        const isExpanded = this.buttonConfig.info.active;
+        this.infoDiv.classList.toggle('expanded', isExpanded);
+        this.infoToggle.textContent = isExpanded ? '▲' : '▼';
+        if (isExpanded) this.setInfo();
+      },
+
+      updateHelpWindow() {
+        if (this.buttonConfig.help.active) {
+          if (this.helpContent.children.length === 0)
+            this.createHelpContent();
+          this.helpOverlay.style.display = 'block';
+        } else {
+          this.helpOverlay.style.display = 'none';
+        }
+      },
+
+      createHelpContent() {
+        this.helpContent.appendChild(this.createElement('div', {
+          className: 'help-section',
+          innerHTML: `<div>${HELP_TEXT}</div>`,
+        }));
+
+        const keyboardSection = this.createElement('div', {
+          className: 'help-section',
+          innerHTML: '<div class="help-section-title">KEYBOARD SHORTCUTS</div>',
+        });
+
+        const keyList = this.createElement('div');
+        for (const config of Object.values(this.buttonConfig)) {
+          if (config.key) {
+            keyList.appendChild(this.createElement('div', {
+              innerHTML: `<span class="help-key">${config.key}</span> ${config.desc}`,
+            }));
+          }
+        }
+        keyboardSection.appendChild(keyList);
+        this.helpContent.appendChild(keyboardSection);
+
+        const licenseSection = this.createElement('div', {
+          id: 'license',
+          className: 'help-section',
+          innerHTML: '<div class="help-section-title">LICENSE</div>',
+        });
+
+        licenseSection.appendChild(this.createElement('div', { innerHTML: LICENSE_TEXT }));
+
+        this.helpContent.appendChild(licenseSection);
+      },
+
+      updateTexturesPanel() {
+        if (this.buttonConfig.textures.active) {
+          this.texturesPanel.style.display = 'block';
+          this.texturesPanel.innerHTML = '';  // Clears elements from any previously created texturesPanel.
+          if (!this.mesh) return;
+
+          const albedoMap = this.mesh.material.map || this.mesh.userData.originalMaterial.map;
+          if (albedoMap) this.createTextureThumbnail(albedoMap, 'Albedo');
+
+          const { normalMap } = this.mesh.userData.originalMaterial;
+          if (normalMap) this.createTextureThumbnail(normalMap, 'Normal');
+        } else {
+          this.texturesPanel.style.display = 'none';
+        }
+        this.requestRender();
+      },
+
+      createTextureThumbnail(map, mapType) {
+        const container = this.createElement('div', {
+          className: 'texture-container',
+          title: `Open the ${mapType} map in a new browser tab`,
+        });
+
+        const canvas = this.createElement('canvas', { className: 'texture-thumbnail' });
+        container.appendChild(canvas);
+
+        const dims = `${map.image.width}x${map.image.height}`;
+        const size = this.getTextureBufferInfo(mapType)?.bufferData?.byteLength || 0;
+        const details = size ? `; ${this.formatNum(size)}B` : '';
+        container.appendChild(this.createElement('div', {
+          className: 'texture-label',
+          innerHTML: `${mapType} (${dims}<span class="texture-label-details">${details}</span>)`,
+        }));
+
+        const closeBtn = this.createElement('span', {
+          className: 'texture-close',
+          title: 'Hide the texture thumbnails',
+          innerHTML: '×',
+        });
+        closeBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          this.pressButton(this.buttonConfig.textures);
+        });
+        container.appendChild(closeBtn);
+
+        this.texturesPanel.appendChild(container);
+
+        // Get the computed CSS dimensions after the canvas is in the DOM.
+        const computedStyle = window.getComputedStyle(canvas);
+        const cssWidth = parseInt(computedStyle.width, 10);
+        const cssHeight = parseInt(computedStyle.height, 10);
+        const pixelRatio = window.devicePixelRatio || 1.0;  // For high-DPI displays.
+        canvas.width = cssWidth * pixelRatio;
+        canvas.height = cssHeight * pixelRatio;
+
+        // Create a unique key for the texture - combine the map UUID and the image dimensions.
+        const cacheKey = `${map.uuid}_${canvas.width}x${canvas.height}`;
+
+        let cachedCanvas = this.thumbnailCanvasOfTextureKey[cacheKey];
+        if (cachedCanvas) {
+          this.drawCanvasToCanvas(cachedCanvas, canvas);
+        } else {
+          cachedCanvas = this.createElement('canvas', { width: canvas.width, height: canvas.height });
+          this.generateThumbnail(map, cachedCanvas, mapType).then(() => {
+            this.thumbnailCanvasOfTextureKey[cacheKey] = cachedCanvas;
+            this.drawCanvasToCanvas(cachedCanvas, canvas);
+          });
+        }
+
+        canvas.addEventListener('click', () => { this.openImageInNewTab(map, mapType); });
+
+        return container;
+      },
+
+      drawCanvasToCanvas(sourceCanvas, targetCanvas) {
+        const context = targetCanvas.getContext('2d');
+        context.drawImage(sourceCanvas, 0, 0);
+      },
+
+      async generateThumbnail(map, targetCanvas, mapType) {
+        if (this.CONFIG.thumbnails.useGpuDownsampling) {
+          const useLinearSpace = mapType === 'Normal';
+          this.gpuDownsample(map, targetCanvas, useLinearSpace);
+        } else {
+          await this.asyncFastDownsample(map.image, targetCanvas);
+        }
+        return targetCanvas;
+      },
+
+      fastDownsample(image, targetCanvas) {
+        const targetWidth = targetCanvas.width;
+        const targetHeight = targetCanvas.height;
+        let currentWidth = image.width || image.naturalWidth;
+        let currentHeight = image.height || image.naturalHeight;
+
+        let currentCanvas = this.createElement('canvas', { width: currentWidth, height: currentHeight });
+
+        const context = currentCanvas.getContext('2d', { alpha: true });
+        context.drawImage(image, 0, 0);
+
+        const factor = Math.min(targetWidth / currentWidth, targetHeight / currentHeight);
+
+        // Fast path: If not much downsampling is needed, just do it in one step.
+        if (factor >= 0.5) {
+          const targetContext = targetCanvas.getContext('2d', { alpha: true });
+          targetContext.imageSmoothingEnabled = true;
+          targetContext.imageSmoothingQuality = 'high';
+          targetContext.drawImage(currentCanvas, 0, 0, targetWidth, targetHeight);
+          return;
+        }
+
+        // Use a maximum of 3 steps for speed.
+        const maxSteps = 3;
+        const stepFactor = factor ** (1 / maxSteps);
+
+        for (let stepIndex = 0; stepIndex < maxSteps - 1; stepIndex++) {
+          const nextWidth = Math.max(Math.floor(currentWidth * stepFactor), 1);
+          const nextHeight = Math.max(Math.floor(currentHeight * stepFactor), 1);
+
+          const nextCanvas = this.createElement('canvas', { width: nextWidth, height: nextHeight });
+
+          const nextContext = nextCanvas.getContext('2d', { alpha: true });
+          nextContext.imageSmoothingEnabled = true;
+          nextContext.drawImage(currentCanvas, 0, 0, nextWidth, nextHeight);
+
+          currentCanvas = nextCanvas;
+          currentWidth = nextWidth;
+          currentHeight = nextHeight;
+        }
+
+        // Final resize to exact dimensions.
+        const finalContext = targetCanvas.getContext('2d', { alpha: true });
+        finalContext.imageSmoothingEnabled = true;
+        finalContext.drawImage(currentCanvas, 0, 0, targetWidth, targetHeight);
+      },
+
+      asyncFastDownsample(image, targetCanvas) {
+        return new Promise(resolve => {
+          requestAnimationFrame(() => {
+            this.fastDownsample(image, targetCanvas);
+            resolve();
+          });
+        });
+      },
+
+      gpuDownsample(texture, targetCanvas, useLinearSpace) {
+        if (texture.encoding !== THREE.sRGBEncoding) throw Error(`texture.encoding = ${texture.encoding}`);
+        const { width, height } = targetCanvas;
+
+        const renderTarget = new THREE.WebGLRenderTarget(width, height, {
+          format: THREE.RGBAFormat,
+          type: THREE.UnsignedByteType,
+          generateMipmaps: false,  // Setting to true causes:
+          // "WebGL warning: generateMipmap: Tex image TEXTURE_2D level 0 is incurring lazy initialization".
+          colorSpace: useLinearSpace ? THREE.LinearSRGBColorSpace : THREE.SRGBColorSpace,
+        });
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5, 0, 1);
+        const geometry = new THREE.PlaneGeometry(1, 1);
+
+        const textureClone = texture.clone();
+        textureClone.minFilter = THREE.LinearFilter;
+        textureClone.magFilter = THREE.LinearFilter;
+        textureClone.needsUpdate = true;
+
+        const material = new THREE.MeshBasicMaterial({ map: textureClone });
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        const previousRenderTarget = this.renderer.getRenderTarget();
+        this.renderer.setRenderTarget(renderTarget);
+        this.renderer.render(scene, camera);
+        this.renderer.setRenderTarget(previousRenderTarget);
+
+        const pixelBuffer = new Uint8Array(width * height * 4);
+        this.renderer.readRenderTargetPixels(renderTarget, 0, 0, width, height, pixelBuffer);
+
+        const context = targetCanvas.getContext('2d');
+        const imageData = context.createImageData(width, height);
+        imageData.data.set(pixelBuffer);
+        context.putImageData(imageData, 0, 0);
+
+        material.dispose();
+        geometry.dispose();
+        textureClone.dispose();
+        renderTarget.dispose();
+      },
+
+      tangentsAreInObjectSpace() {
+        return Boolean(this.mesh.material?.userData?.objectSpaceNormalMap);
+      },
+
+      openImageInNewTab(map, mapType) {
+        const bufferInfo = this.getTextureBufferInfo(mapType);
+        if (!bufferInfo) {
+          console.warn(`Cannot open ${mapType} texture in new tab - original buffer not found`);
+          return;
+        }
+
+        const rootFilename = this.modelName.replace(/\.(glb|gltf)$/, '');
+        const extension = {
+          'image/png': 'png',
+          'image/jpeg': 'jpg',
+          'image/webp': 'webp',
+          'image/avif': 'avif',
+        }[bufferInfo.mimeType];
+        const fileName = `${rootFilename}.${mapType.toLowerCase()}.${extension}`;
+
+        let url;
+        let size;
+
+        if (bufferInfo.bufferData) {
+          // For GLB: We have binary data - create a blob URL.
+          const blob = new Blob([bufferInfo.bufferData], { type: bufferInfo.mimeType });
+          url = URL.createObjectURL(blob);
+          size = bufferInfo.bufferData.byteLength;
+        } else if (bufferInfo.fileUri) {
+          // For GLTF: We have a direct file URI - use that.
+          url = bufferInfo.fileUri;
+        } else {
+          return;
+        }
+
+        const newTab = window.open('', '_blank');
+        if (!newTab) {
+          if (bufferInfo.bufferData) URL.revokeObjectURL(url);
+          return;
+        }
+
+        const dimensionsText = `${map.image.width}x${map.image.height}`;
+        const sizeText = size ? ` - ${this.formatNum(size)}B` : '';
+        const normalMapType = this.tangentsAreInObjectSpace() ? 'object-space' : 'tangent-space';
+        const normalText = mapType !== 'Normal' ? '' : ` - ${normalMapType} normals`;
+
+        // Create HTML with Viewer.js.
+        const docHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>${fileName} - ${mapType} Texture Map</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/viewerjs@1.11.7/dist/viewer.min.css'>
+            <style>
+              html, body {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                font-family: Arial, sans-serif;
+                background-color: #1a1a1a;
+                color: white;
+                overflow: hidden;
+              }
+              .header {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: rgba(30, 30, 30, 0.8);
+                padding: 10px 15px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                z-index: 1000;
+              }
+              .info {
+                font-size: 13px;
+              }
+              .download-link {
+                background: rgba(60, 60, 60, 0.8);
+                color: white;
+                padding: 8px 15px;
+                text-decoration: none;
+                border-radius: 4px;
+                font-size: 14px;
+                transition: background 0.2s;
+              }
+              .download-link:hover {
+                background: rgba(80, 80, 80, 0.9);
+              }
+              #image {
+                display: none;
+              }
+              .container {
+                padding-top: 40px;
+                height: calc(100% - 40px);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+              }
+              .viewer-canvas img {
+                image-rendering: pixelated;
+              }
+              .viewer-toolbar {
+                transform: scale(1.8);  /* Make controls larger at the bottom. */
+              }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="info">${fileName} - ${dimensionsText}${sizeText} - ${bufferInfo.mimeType}${normalText}</div>
+              <a class="download-link" href="${url}" download="${fileName}">Download</a>
+            </div>
+
+            <div class="container">
+              <img id="image" src="${url}" alt="${mapType} Map">
+            </div>
+
+            <${''}script src='https://cdn.jsdelivr.net/npm/viewerjs@1.11.7/dist/viewer.min.js'><${''}/script>
+
+            <${''}script>
+              window.addEventListener('DOMContentLoaded', function() {
+                const image = document.getElementById('image');
+                const viewer = new Viewer(image, {
+                  inline: true,
+                  navbar: false,
+                  title: false,
+                  toolbar: { zoomIn: true, zoomOut: true, oneToOne: true, reset: true },
+                  fullscreen: true,
+                  zoomOnWheel: true,
+                  zoomRatio: 0.5,
+                  minZoomRatio: 0.01,
+                  maxZoomRatio: 10,
+                  viewed() { viewer.reset(); },  // Start with the entire image visible.
+                });
+              });
+            <${''}/script>
+          </body>
+          </html>
+        `;
+
+        newTab.document.write(docHtml);
+        newTab.document.close();
+
+        // Clean up the URL when the tab is closed (only if we created it).
+        if (bufferInfo.bufferData)
+          newTab.addEventListener('unload', () => URL.revokeObjectURL(url));
+      },
+
+      loadModel() {
+        const loader = new GLTFLoader();
+
+        const dracoLoader = new DRACOLoader();
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+        loader.setDRACOLoader(dracoLoader);
+
+        loader.load(
+          this.modelFile + (this.CONFIG.model.enableCaching ? '' : '?nocache=' + Date.now()),
+          (gltf) => this.loadGltf(gltf),
+          (xhr) => {
+            const percent = (xhr.loaded / xhr.total) * 100;
+            this.infoSummary.textContent = `Loading: ${Math.round(percent)}%`;
+            this.requestRender();
+          },
+          (error) => {
+            console.error('Error loading model:', error);
+            this.infoSummary.textContent = 'Error loading model: ' + error.message;
+            this.infoSummary.style.color = 'red';
+          },
+        );
+      },
+
+      logAttributesOfVertex(geometry, index) {
+        const vertexInfo = {};
+        for (const [name, attribute] of Object.entries(geometry.attributes))
+          vertexInfo[name] = Array.from({ length: attribute.itemSize }, (_, i) => attribute.getComponent(index, i));
+        console.log(`Attributes of vertex ${index}:`, vertexInfo);
+      },
+
+      logAttributesOfSomeVertices() {
+        const { geometry } = this.mesh;
+        this.logAttributesOfVertex(geometry, 0);
+        this.logAttributesOfVertex(geometry, geometry.userData.actualVertexCount - 1);
+      },
+
+      async loadGltf(gltf) {
+        this.gltfData = gltf;
+        this.model = gltf.scene;
+
+        this.model.traverse((node) => {
+          if (node.isMesh) {
+            if (this.mesh) throw Error('More than one mesh in the model');
+            this.mesh = node;
+          }
+          if (node.userData?.octaInfo) this.octaInfo = node.userData.octaInfo;
+        });
+        if (!this.mesh) throw Error('No mesh found in the model');
+
+        if (this.octaInfo?.cameraFrame)
+          this.cameraData = this.parseCameraString(this.octaInfo.cameraFrame);
+
+        this.mesh.geometry.userData.actualVertexCount = this.mesh.geometry.attributes.position.count;
+        this.createOriginalVertexIndexArray();
+        this.reorderVerticesToOriginalIndices();
+        this.createParentVertexIndexArray();
+        this.simplifyOriginalMesh();
+        if (this.CONFIG.debug) this.logAttributesOfSomeVertices();
+        this.originalGeometry = this.mesh.geometry;
+        this.computeMeshExtentsAndCenterPoint();
+        this.initializeMaterial();
+        this.initializeCamera();
+        this.resetView();
+
+        this.controls.update();
+        this.updateButtons();
+
+        this.scene.add(this.model);
+
+        if (this.automationMode && (this.buttonConfig.sphere.active || this.buttonConfig.octahedron.active)) {
+          try {
+            await this.gridLoadingPromise;
+          } catch (error) {
+            console.error('Failed to load sphere grid for automation:', error);
+            this.buttonConfig.sphere.active = false;
+            this.buttonConfig.octahedron.active = false;
+          }
+        }
+        if (this.buttonConfig.demo.active) this.updateDemo();
+        if (this.buttonConfig.geomorphs.active) this.updateGeomorphs();
+        if (this.buttonConfig.sphere.active) this.updateSphere();
+        if (this.buttonConfig.octahedron.active) this.updateOctahedron();
+
+        this.updateEdges();
+        this.updateMaterial();
+        this.updateTexturesPanel();
+        this.updateInfoDetails();
+        this.setInfo();
+
+        if (this.automationMode)
+          this.setupAutomation();
+      },
+
+      createOriginalVertexIndexArray() {
+        const { attributes } = this.mesh.geometry;
+        // My custom attribute, created from Vertex {original=%d} generated in Filtermesh.cpp.
+        const attribute = attributes._original;  // eslint-disable-line no-underscore-dangle
+        if (!attribute) return;
+
+        if (attribute.itemSize !== 1) throw new Error('?');
+        const isUint = attribute.array instanceof Uint16Array || attribute.array instanceof Uint32Array;
+        if (!isUint) throw new Error('?');
+        const vertexCount = attributes.position.count;
+        if (attribute.count !== vertexCount) throw new Error('?');
+
+        this.originalVertexIndexArray = [];
+        for (let vertexIndex = 0; vertexIndex < attribute.count; vertexIndex++) {
+          const value = attribute.getComponent(vertexIndex, 0) - 1;  // Convert from 1-based to 0-based.
+          if (value < 0 || value >= vertexCount) throw new Error('?');
+          this.originalVertexIndexArray.push(value);
+        }
+
+        if (1) this.mesh.geometry.deleteAttribute('_original');  // Perhaps save some GPU memory.
+      },
+
+      reorderVerticesToOriginalIndices() {
+        if (!this.originalVertexIndexArray) return;
+        if (this.originalVertexIndexArray.every((value, i) => value === i)) return;
+
+        const { geometry } = this.mesh;
+        const vertexCount = geometry.attributes.position.count;
+
+        // Create reverse mapping: originalIndex -> currentIndex.
+        const currentIndexOfOriginal = new Array(vertexCount).fill(undefined);
+        for (let currentIndex = 0; currentIndex < vertexCount; currentIndex++) {
+          const originalIndex = this.originalVertexIndexArray[currentIndex];
+          if (0 && currentIndexOfOriginal[originalIndex] !== undefined)
+            console.log({ currentIndex, originalIndex, already: currentIndexOfOriginal[originalIndex] });
+          currentIndexOfOriginal[originalIndex] = currentIndex;
+        }
+
+        // Check for permutation validity.
+        const undefinedCount = currentIndexOfOriginal.filter(x => x === undefined).length;
+        if (undefinedCount > 0) {
+          // On 'fangyibase', Draco compression unexpectedly adds 6 new vertices.
+          console.warn(`${undefinedCount} original indices are unmapped; filling with identity mapping`);
+          for (let i = 0; i < vertexCount; i++)
+            if (currentIndexOfOriginal[i] === undefined) currentIndexOfOriginal[i] = i;
+        }
+
+        // Reorder all vertex attributes.  Requires non-interleaved attributes buffer.
+        for (const attribute of Object.values(geometry.attributes)) {
+          const { itemSize, array } = attribute;
+          const newArray = new array.constructor(array.length);
+
+          for (let originalIndex = 0; originalIndex < vertexCount; originalIndex++) {
+            const currentIndex = currentIndexOfOriginal[originalIndex];
+            for (let component = 0; component < itemSize; component++)
+              newArray[originalIndex * itemSize + component] = array[currentIndex * itemSize + component];
+          }
+
+          attribute.array = newArray;
+          attribute.needsUpdate = true;
+        }
+
+        // Update the index array to use the new vertex indices.
+        if (geometry.index) {
+          const { array: indexArray } = geometry.index;
+          for (let i = 0; i < indexArray.length; i++) {
+            const currentVertexIndex = indexArray[i];
+            const originalVertexIndex = this.originalVertexIndexArray[currentVertexIndex];
+            indexArray[i] = originalVertexIndex;
+          }
+          geometry.index.needsUpdate = true;
+        }
+
+        if (this.CONFIG.debug) console.log('Vertices reordered to original indices');
+      },
+
+      createParentVertexIndexArray() {
+        const { attributes } = this.mesh.geometry;
+        // My custom attribute, created from Vertex {parent=%d} generated in octa_to_gltf.js.
+        const attribute = attributes._parent;  // eslint-disable-line no-underscore-dangle
+        if (!attribute) {
+          const config = this.buttonConfig.geomorphs;
+          config.active = false;
+          const { button } = config;
+          button.disabled = true;
+          button.classList.remove('active');
+          button.title = 'This model has no parentVertex info for simplification';
+          return;
+        }
+
+        if (attribute.itemSize !== 1) throw new Error('?');
+        const isUint = attribute.array instanceof Uint16Array || attribute.array instanceof Uint32Array;
+        if (!isUint) throw new Error('?');
+        const vertexCount = attributes.position.count;
+        if (attribute.count !== vertexCount) throw new Error('?');
+
+        this.parentVertexIndexArray = [];
+        for (let vertexIndex = 0; vertexIndex < attribute.count; vertexIndex++) {
+          const parentValue = attribute.getComponent(vertexIndex, 0);  // 1-based; 0 means no parent.
+          const isOrphan = parentValue === 0;
+          const parentIndex = isOrphan ? vertexIndex : parentValue - 1;  // 0-based.
+          if (!isOrphan && parentIndex >= vertexIndex) throw new Error(`${vertexIndex} ${parentValue}`);
+          this.parentVertexIndexArray.push(parentIndex);
+        }
+
+        if (1) this.mesh.geometry.deleteAttribute('_parent');  // Perhaps save some GPU memory.
+      },
+
+      simplifyOriginalMesh() {
+        const { presimplificationVertexCount } = this.CONFIG.model;
+        if (presimplificationVertexCount === 0) return;
+        if (!this.parentVertexIndexArray) return;
+        const { geometry } = this.mesh;
+        const newGeometry = this.computeSimplifiedGeometry(geometry, presimplificationVertexCount);
+        if (!newGeometry) throw Error('?');
+        this.truncateGeometryToActualVertexCount(newGeometry);
+        if (0) geometry.dispose();  // Deletion of GPU buffers is unnecessary because mesh is not yet rendered.
+        this.mesh.geometry = newGeometry;
+      },
+
+      prepareSimplification(geometry, desiredVertexCount) {
+        if (!this.parentVertexIndexArray) throw Error('Cannot simplify mesh geometry without parentVertexIndexArray');
+        const vertexCount = geometry.userData.actualVertexCount;
+        if (geometry.attributes.position.count < vertexCount) throw Error('?');
+        if (desiredVertexCount < 1 || desiredVertexCount >= vertexCount) throw Error('?');
+
+        // We cannot simplify coarser than the base mesh of the progressive mesh.
+        let newVertexCount = desiredVertexCount;
+        while (this.parentVertexIndexArray[newVertexCount] === newVertexCount)
+          newVertexCount += 1;
+
+        // Atomically collapse all adjacent wedges (i.e., vertices sharing the same position).
+        while (newVertexCount > 1 && this.samePosition(geometry, newVertexCount - 1, newVertexCount) &&
+               this.samePosition(geometry, this.parentVertexIndexArray[newVertexCount - 1],
+                                 this.parentVertexIndexArray[newVertexCount]))
+          newVertexCount -= 1;
+
+        if (newVertexCount === vertexCount) return null;  // Geometry could not be further simplified.
+
+        // Copy the parent index values but replace the indices on the destination coarse vertices with identity.
+        const destIndexArray = [
+          ...Array(newVertexCount).keys(),
+          ...this.parentVertexIndexArray.slice(newVertexCount, vertexCount),
+        ];
+
+        // Apply path compression to the parent relations.
+        for (let vertexIndex = newVertexCount; vertexIndex < vertexCount; vertexIndex++)
+          destIndexArray[vertexIndex] = destIndexArray[destIndexArray[vertexIndex]];
+
+        return { vertexCount, newVertexCount, destIndexArray };
+      },
+
+      samePosition(geometry, vertexIndex1, vertexIndex2) {
+        const { position } = geometry.attributes;
+        for (let coordIndex = 0; coordIndex < 3; coordIndex++) {
+          if (position.getComponent(vertexIndex1, coordIndex) !== position.getComponent(vertexIndex2, coordIndex))
+            return false;
+        }
+        return true;
+      },
+
+      computeSimplifiedGeometry(geometry, desiredVertexCount) {
+        const prepare = this.prepareSimplification(geometry, desiredVertexCount);
+        if (!prepare) return null;
+        const { newVertexCount, destIndexArray } = prepare;
+
+        // Compute the new indices and keep all non-degenerate triangles.
+        const { array: indexArray } = geometry.index;
+        const newIndices = [];
+        for (let i = 0; i < indexArray.length; i += 3) {
+          const index0 = destIndexArray[indexArray[i]];
+          const index1 = destIndexArray[indexArray[i + 1]];
+          const index2 = destIndexArray[indexArray[i + 2]];
+          if (index0 !== index1 && index1 !== index2 && index0 !== index2)
+            newIndices.push(index0, index1, index2);
+        }
+
+        const newGeometry = this.shallowCloneGeometry(geometry);  // Start with shared index and attribute buffers.
+        newGeometry.setIndex(newIndices);  // Let Three.js choose Uint16Array or Uint32Array.
+
+        // We keep the original vertex attribute data but reference only a prefix of those vertices.
+        newGeometry.userData.actualVertexCount = newVertexCount;
+
+        return newGeometry;
+      },
+
+      computeGeomorph(fineGeometry, desiredVertexCount) {
+        const prepare = this.prepareSimplification(fineGeometry, desiredVertexCount);
+        if (!prepare) return null;
+        const { vertexCount, destIndexArray } = prepare;
+
+        const morphGeometry = this.shallowCloneGeometry(fineGeometry);
+
+        // Morph all attributes.
+        for (const [name, attribute] of Object.entries(morphGeometry.attributes)) {
+          const { itemSize } = attribute;
+          const morphedAttribute = new Float32Array(vertexCount * itemSize);
+          for (let vertexIndex = 0; vertexIndex < vertexCount; vertexIndex++) {
+            const destIndex = destIndexArray[vertexIndex];
+            for (let coord = 0; coord < itemSize; coord++)
+              morphedAttribute[vertexIndex * itemSize + coord] = attribute.getComponent(destIndex, coord);
+          }
+          // Three.js currently implements morphAttributes only for position, normal, and tangent.
+          if (['position', 'normal', 'tangent'].includes(name))
+            morphGeometry.morphAttributes[name] = [new THREE.BufferAttribute(morphedAttribute, itemSize)];
+          else if (name === 'uv')
+            morphGeometry.setAttribute('morphUv', new THREE.BufferAttribute(morphedAttribute, 2));
+          else
+            throw Error('?');
+        }
+
+        return morphGeometry;
+      },
+
+      truncateGeometryToActualVertexCount(geometry) {
+        const vertexCount = geometry.userData.actualVertexCount;
+        if (geometry.attributes.position.count < vertexCount) throw Error('?');
+        if (geometry.attributes.position.count === vertexCount) return;
+        for (const [name, attribute] of Object.entries(geometry.attributes)) {
+          const elementCount = vertexCount * attribute.itemSize;
+          const newArray = attribute.array.slice(0, elementCount);  // Requires non-interleaved attributes buffer.
+          const newAttribute = new THREE.BufferAttribute(newArray, attribute.itemSize);
+          newAttribute.normalized = attribute.normalized;
+          geometry.setAttribute(name, newAttribute);
+        }
+      },
+
+      computeMeshExtentsAndCenterPoint() {
+        this.bbox = new THREE.Box3().setFromObject(this.model);
+        const size = this.bbox.getSize(new THREE.Vector3());
+        this.maxModelDim = Math.max(size.x, size.y, size.z);
+        const { centroid, rmsRadius } = this.computeCentroidAndRmsRadius(this.mesh.geometry);
+        this.centerPoint = centroid;
+        this.rmsRadius = rmsRadius;
+        if (this.cameraData) {
+          // Compute centerPoint.y as the point on the vertical line through (centerPoint.x, centerPoint.z) that is
+          // closest to the ray along the camera forward direction.
+          this.centerPoint.y = this.computeCenterY(
+            this.cameraData.position, this.cameraData.forward, this.centerPoint.x, this.centerPoint.z,
+          );
+        }
+      },
+
+      computeCentroidAndRmsRadius(geometry) {
+        const positions = geometry.attributes.position;
+        const indices = geometry.index.array;
+        if (positions.count === 0 || indices.length === 0) throw Error('?');
+
+        let totalArea = 0;
+        const centroid = new THREE.Vector3(0.0, 0.0, 0.0);  // For first moment about the origin.
+        let sumSquaredDistFromOrigin = 0.0;                 // For radial second moment about the origin.
+        const [v0, v1, v2, e1, e2, triangleCentroid, temp] = Array(7).fill().map(() => new THREE.Vector3());
+
+        for (let i = 0; i < indices.length; i += 3) {
+          v0.fromBufferAttribute(positions, indices[i]);
+          v1.fromBufferAttribute(positions, indices[i + 1]);
+          v2.fromBufferAttribute(positions, indices[i + 2]);
+
+          e1.subVectors(v1, v0);
+          e2.subVectors(v2, v0);
+          const area = 0.5 * temp.crossVectors(e1, e2).length();
+          totalArea += area;
+
+          triangleCentroid.copy(v0).add(v1).add(v2).multiplyScalar(1 / 3);
+          centroid.add(temp.copy(triangleCentroid).multiplyScalar(area));
+
+          const squaredDistFromOrigin = triangleCentroid.lengthSq();
+          sumSquaredDistFromOrigin += squaredDistFromOrigin * area;
+        }
+
+        centroid.divideScalar(totalArea);
+
+        const meanSquaredDistFromOrigin = sumSquaredDistFromOrigin / totalArea;
+        const centroidSquaredDistFromOrigin = centroid.lengthSq();
+        // Calculate RMS distance using the parallel axis theorem.
+        const meanSquaredDistFromCentroid = meanSquaredDistFromOrigin - centroidSquaredDistFromOrigin;
+        const rmsRadius = Math.sqrt(Math.max(0, meanSquaredDistFromCentroid));
+
+        return { centroid, rmsRadius };
+      },
+
+      computeCenterY(cameraPosition, cameraForward, centerX, centerZ) {
+        // Compute parameter t for the point on the camera forward ray that is closest to the vertical center line.
+        const numerator = ((centerX - cameraPosition.x) * cameraForward.x +
+                           (centerZ - cameraPosition.z) * cameraForward.z);
+        const denominator = cameraForward.x ** 2 + cameraForward.z ** 2;
+        if (!denominator) throw Error('Zero denominator');
+        const t = numerator / denominator;
+        return cameraPosition.y + t * cameraForward.y;
+      },
+
+      initializeMaterial() {
+        const { material } = this.mesh;
+
+        material.polygonOffset = true;
+        material.polygonOffsetUnits = 1;  // Positive value pushes polygon away (for front-facing poly).
+        material.polygonOffsetFactor = 1;  // Positive value pushes oblique polygons farther away.
+
+        // Override the parameter value "DoubleSide" which was set in octa_to_gltf.py
+        // Often, we prefer FrontSide to avoid the rendering artifacts (foldovers, interpenetration) during morphs.
+        if (!this.CONFIG.material.doubleSide)
+          material.side = THREE.FrontSide;
+
+        this.initializeTexture(material.map, 'Albedo');
+        this.initializeTexture(material.normalMap, 'Normal');
+        if (material.normalMap) {
+          material.normalMapType = this.tangentsAreInObjectSpace() ?
+            THREE.ObjectSpaceNormalMap :  // (Not currently representable in GTLF.)
+            THREE.TangentSpaceNormalMap;
+        }
+
+        this.mesh.userData.originalMaterial = material.clone();
+      },
+
+      patchVertexShaderToSupportUvMorph(mesh) {
+        const { geometry, material } = mesh;
+        if (geometry.attributes.morphUv) {
+          material.onBeforeCompile = (shader) => {
+            // https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderChunk/uv_vertex.glsl.js
+            shader.vertexShader = shader.vertexShader.replace(
+              `#include <${''}morphtarget_pars_vertex>`,
+              `
+                 #include <${''}morphtarget_pars_vertex>
+
+                 #ifdef USE_MORPHTARGETS
+                   attribute vec2 morphUv;
+                 #endif
+              `,
+            );
+
+            shader.vertexShader = shader.vertexShader.replace(
+              `#include <${''}uv_vertex>`,
+              `
+                vec2 uvMorphed = vec3(uv, 1).xy;
+                #ifdef USE_MORPHTARGETS
+                  uvMorphed = mix(uv, morphUv, morphTargetInfluences[0]);
+                #endif
+
+                #if defined( USE_UV ) || defined( USE_ANISOTROPY )
+                  vUv = uvMorphed;
+                #endif
+
+                #ifdef USE_MAP
+                  // (We assume that macro MAP_UV has expanded to "uv" rather than "uv2" etc.)
+                  vMapUv = ( mapTransform * vec3( uvMorphed, 1 ) ).xy;
+                #endif
+
+                #ifdef USE_NORMALMAP
+                  // (We assume that macro NORMALMAP_UV has expanded to "uv" rather than "uv2" etc.)
+                  vNormalMapUv = ( normalMapTransform  * vec3( uvMorphed, 1 ) ).xy;
+                #endif
+              `,
+            );
+          };
+        } else {
+          material.onBeforeCompile = (_shader) => {};
+        }
+        material.needsUpdate = true;
+      },
+
+      downsampleTexturesToGlMaxSize(textureMap) {
+        const gl = this.renderer.getContext();
+        const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+        const { image } = textureMap;
+        if (image && (image.width > maxTextureSize || image.height > maxTextureSize)) {
+          console.log(`Texture size ${image.width}x${image.height} exceeds device maximum of ${maxTextureSize}`);
+          const aspectRatio = image.width / image.height;
+          let newWidth, newHeight;
+          if (image.width > image.height) {
+            newWidth = Math.min(maxTextureSize, image.width);
+            newHeight = Math.floor(newWidth / aspectRatio);
+          } else {
+            newHeight = Math.min(maxTextureSize, image.height);
+            newWidth = Math.floor(newHeight * aspectRatio);
+          }
+          newWidth = Math.floor(newWidth / 2) * 2;
+          newHeight = Math.floor(newHeight / 2) * 2;
+          const canvas = this.createElement('canvas', { width: newWidth, height: newHeight });
+          this.fastDownsample(image, canvas);
+          textureMap.image = canvas;
+          console.log(`Resized texture to ${newWidth}x${newHeight}`);
+        }
+      },
+
+      featherTextureBoundaries(textureMap) {
+        // For each of the four image boundaries, we must establish mirror symmetry within the pixels on the boundary.
+        // This leads to a narrow (1-texel width) band of zero-derivative signal across the texture boundary, but this
+        // is better than leaving a perceptible C^0 discontinuity.
+        // The feathering is already performed in "SphereSample.cpp" on the original texture, but we must reapply
+        // it here to account for (1) any lossy image compression and (2) downsampleToMaxTextureSize.
+        // The solution here leads to a continuous reconstruction (i.e., no reflection discontinuities in the normal).
+        // However, with aggressive compression, we can still perceive where the domain boundaries lie.  A better
+        // solution would involve multiresolution feathering on a larger band, proportional to the compression loss.
+        // In the end, though, this function is too computationally expensive in JavaScript to justify the effort.
+        // Maybe it would be more practical if computed within a GPU shader.
+        const { image } = textureMap;
+        const canvas = this.createElement('canvas', { width: image.width, height: image.height });
+        const context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0);
+
+        const imageData = context.getImageData(0, 0, image.width, image.height);
+        const { data } = imageData;
+
+        // For each of the four image boundaries, establish mirror symmetry.
+        for (const axis of [0, 1]) {
+          for (const edge of [0, 1]) {
+            if (axis === 0) {  // Process horizontal edges (top and bottom).
+              const y = edge === 0 ? 0 : image.height - 1;
+              const { width } = image;
+              const num = width;
+              for (let i = 0; i < num / 2; i++) {
+                const index1 = (y * width + i) * 4;
+                const index2 = (y * width + (num - 1 - i)) * 4;
+                for (let c = 0; c < 4; c++)
+                  data[index1 + c] = data[index2 + c] = Math.round((data[index1 + c] + data[index2 + c]) / 2);
+              }
+            } else {  // Process vertical edges (left and right).
+              const x = edge === 0 ? 0 : image.width - 1;
+              const { width, height } = image;
+              const num = height;
+              for (let i = 0; i < num / 2; i++) {
+                const index1 = ((i * width) + x) * 4;
+                const index2 = (((num - 1 - i) * width) + x) * 4;
+                for (let c = 0; c < 4; c++)
+                  data[index1 + c] = data[index2 + c] = Math.round((data[index1 + c] + data[index2 + c]) / 2);
+              }
+            }
+          }
+        }
+
+        context.putImageData(imageData, 0, 0);
+        textureMap.image = context.canvas;
+        textureMap.needsUpdate = true;
+      },
+
+      initializeTexture(textureMap, mapType) {
+        if (textureMap) {
+          textureMap.wrapS = THREE.ClampToEdgeWrapping;
+          textureMap.wrapT = THREE.ClampToEdgeWrapping;
+          if (this.CONFIG.texture.downsampleToGlMaxSize)
+            this.downsampleTexturesToGlMaxSize(textureMap);
+          if (this.CONFIG.texture.featherBoundaries)
+            this.featherTextureBoundaries(textureMap);
+          const anisotropy = Math.min(this.CONFIG.texture.anisotropy, this.renderer.capabilities.getMaxAnisotropy());
+          textureMap.anisotropy = anisotropy;
+          textureMap.needsUpdate = true;
+        } else {
+          const config = this.buttonConfig[mapType.toLowerCase()];
+          config.active = false;
+          const { button } = config;
+          button.disabled = true;
+          button.classList.remove('active');
+          button.title = `This model has no ${mapType} map`;
+        }
+      },
+
+      updateMaterial() {
+        if (!this.model) return;
+        let newMaterial = this.mesh.userData.originalMaterial.clone();  // Start afresh.
+
+        if (this.buttonConfig.uvgrid.active) {
+          if (!this.uvGridTexture) this.createUvGridTexture();
+          newMaterial.map = this.uvGridTexture;
+        } else if (newMaterial.map && !this.buttonConfig.albedo.active) {
+          newMaterial.map = null;  // Disable albedo map.
+        }
+
+        if (newMaterial.normalMap && !this.buttonConfig.normal.active)
+          newMaterial.normalMap = null;  // Revert back to vertex normals.
+
+        {
+          const shadingConfig = this.CONFIG.material.varnish[this.buttonConfig.varnish.active];
+          // Like glTF baseColorFactor; default 1.0 .
+          newMaterial.color.setRGB(...shadingConfig.color);
+          // Like glTF metallicFactor; default 0.0; higher values create more pronounced highlights.
+          newMaterial.metalness = shadingConfig.metalness;
+          // Like glTF roughnessFactor; default 1.0; lower values are more specular (assuming a PBR material).
+          newMaterial.roughness = shadingConfig.roughness;
+        }
+
+        if (newMaterial.map) newMaterial.color.setRGB(...this.CONFIG.material.albedoMapBaseColor);
+
+        if (this.CONFIG.rendering.visualizeInterpolatedVertexNormal && this.buttonConfig.normal.active) {
+          if (this.mesh.geometry.attributes.normal)
+            newMaterial = new THREE.MeshNormalMaterial();  // (It has no equivalent in glTF.)
+          else
+            console.warn('No vertex normals available for visualizeInterpolatedVertexNormal');
+        }
+
+        this.mesh.material = newMaterial;
+        this.mesh.material.needsUpdate = true;
+        this.patchVertexShaderToSupportUvMorph(this.mesh);
+        this.updateLights();
+        this.requestRender();
+      },
+
+      getTextureBufferInfo(mapType) {
+        const json = this.gltfData?.parser?.json;
+        if (!json) return null;
+
+        const [material] = json.materials;
+        const textureIndex = (mapType === 'Albedo' ? material.pbrMetallicRoughness.baseColorTexture?.index :
+                              mapType === 'Normal' ? material.normalTexture?.index :
+                              (() => { throw new Error('?'); })());
+        if (textureIndex === undefined) return null;
+
+        const texture = json.textures[textureIndex];
+        let { source } = texture;
+        if (source === undefined) source = texture.extensions?.EXT_texture_avif?.source;
+        if (source === undefined) source = texture.extensions?.EXT_texture_webp?.source;
+
+        const image = json.images[source];
+        const { mimeType } = image;
+
+        const bufferViewIndex = image.bufferView;
+        if (bufferViewIndex !== undefined) {  // Handle GLB (embedded buffer).
+          const bufferView = json.bufferViews[bufferViewIndex];
+          const bufferIndex = bufferView.buffer;
+          const buffer = json.buffers[bufferIndex];
+          const body = this.gltfData.parser.extensions?.KHR_binary_glTF?.body;
+          if (buffer && !buffer.uri && body) {
+            try {
+              const bufferData = new Uint8Array(body, bufferView.byteOffset || 0, bufferView.byteLength);
+              return { bufferData, mimeType };
+            } catch (error) {
+              console.error('Error accessing GLB buffer:', error);
+            }
+          }
+        } else if (image.uri) {  // Handle GLTF (external files).
+          return { fileUri: image.uri, mimeType };
+        }
+
+        return null;
+      },
+
+      createUvGridTexture() {
+        const { textureSize, checkerboardTileSizeInPixels: tileSize } = this.CONFIG.rendering.uvGrid;
+
+        const canvas = this.createElement('canvas', { width: textureSize, height: textureSize });
+        const context = canvas.getContext('2d');
+
+        // Draw a checkerboard pattern.
+        const { darkGray } = this.CONFIG.rendering.uvGrid;
+        for (let y = 0; y < textureSize; y += tileSize) {
+          for (let x = 0; x < textureSize; x += tileSize) {
+            const tileIsColored = ((x / tileSize) + (y / tileSize)) % 2 === 0;
+            if (tileIsColored) {
+              // Create RG color ramp based on UV coordinates.
+              const xs = 0.2 + 0.8 * (x + 0.5) / textureSize;
+              const ys = 0.2 + 0.8 * (y + 0.5) / textureSize;
+              const r = Math.floor(256 * xs);
+              const g = Math.floor(256 * ys);
+              const b = 0;
+              context.fillStyle = `rgb(${r}, ${g}, ${b})`;
+            } else {
+              context.fillStyle = darkGray;
+            }
+            context.fillRect(x, y, tileSize, tileSize);
+          }
+        }
+
+        this.uvGridTexture = new THREE.CanvasTexture(canvas);
+        this.uvGridTexture.wrapS = THREE.ClampToEdgeWrapping;
+        this.uvGridTexture.wrapT = THREE.ClampToEdgeWrapping;
+        this.uvGridTexture.flipY = false;  // Default is true!  Set to false to match textures loaded from GLTF.
+      },
+
+      initializeCamera() {
+        const fov = this.camera.fov * (TAU / 360);
+        this.camera.position.z = Math.abs(this.maxModelDim / 2 / Math.tan(fov / 2)) * 1.5;
+        this.updateCamera();
+      },
+
+      updateCamera() {
+        if (!this.mesh) return;
+        // Update the clipping planes as a function of the distance of the camera from the object center (which
+        // is always at the world origin).
+        const cameraDistance = this.camera.position.length();
+        const config = this.CONFIG.camera;
+        this.camera.near = Math.max(config.nearMin, cameraDistance * config.nearDistanceScale);
+        this.camera.far = cameraDistance * config.farDistanceScale;
+        this.camera.updateProjectionMatrix();
+        if (this.infoIsExpanded()) this.setInfo();
+        this.requestRender();
+      },
+
+      infoIsExpanded() {
+        return this.infoDiv.classList.contains('expanded');
+      },
+
+      formatWithUnderscores(num) {
+        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '_');
+      },
+
+      formatNum(value) {
+        if (value > 19_500_000) return `${(value / 1e6).toFixed(0)} M`;
+        if (value > 950_000) return `${(value / 1e6).toFixed(1)} M`;
+        if (value > 19_500) return `${(value / 1e3).toFixed(0)} k`;
+        if (value > 950) return `${(value / 1e3).toFixed(1)} k`;
+        return `${value} `;
+      },
+
+      setInfo() {
+        if (!this.mesh) return;
+        const underscore = this.formatWithUnderscores;
+        const { formatNum } = this;
+        const { geometry } = this.mesh;
+        const vertexCount = geometry.userData.actualVertexCount;
+        const faceCount = geometry.index.count / 3;
+
+        const jsonSize = new Blob([JSON.stringify(this.gltfData?.parser?.json || '')]).size;
+        const binarySize = this.gltfData.parser.extensions?.KHR_binary_glTF?.body?.byteLength || 0;
+        const totalSize = jsonSize + binarySize;
+        const albedoSize = this.getTextureBufferInfo('Albedo')?.bufferData?.byteLength || 0;
+        const normalSize = this.getTextureBufferInfo('Normal')?.bufferData?.byteLength || 0;
+        const geometrySize = binarySize - albedoSize - normalSize;
+
+        const shortModelName = this.modelName.replace('.octaflat', '').replace('.glb', '');
+        let text = `${shortModelName}`;
+        if (this.morphState === 'geomorphs' && (this.buttonConfig.geomorphs.active || this.sliderValue < 1.0))
+          text += ` (${formatNum(totalSize)}B) (morph ${formatNum(faceCount)} triangles)`;
+        else
+          text += ` (${formatNum(totalSize)}B; ${formatNum(faceCount)} triangles)`;
+        this.infoSummary.textContent = text;
+
+        const box = this.bbox;
+        const center = this.centerPoint;
+        const camera = this.camera.position;
+        const { target } = this.controls;
+        const f = value => value.toPrecision(4);
+        const infoEntries = [
+          `Model: ${this.modelName}`,
+          '',
+          `Mesh: vertices: ${underscore(vertexCount)}  triangles: ${underscore(faceCount)}`,
+          `File size: json: ${formatNum(jsonSize)}B  geometry: ${formatNum(geometrySize)}B  ` +
+            `albedo: ${formatNum(albedoSize)}B  normal: ${formatNum(normalSize)}B`,
+          'Bounding box: ' +
+            `min: [${f(box.min.x)}, ${f(box.min.y)}, ${f(box.min.z)}]  ` +
+            `max: [${f(box.max.x)}, ${f(box.max.y)}, ${f(box.max.z)}]  ` +
+            `center: [${f(center.x)}, ${f(center.y)}, ${f(center.z)}]`,
+        ];
+        if (this.mesh.material.normalMap) {
+          const normalMapType = this.tangentsAreInObjectSpace() ? 'object-space' : 'tangent-space';
+          const { anisotropy } = this.mesh.material.normalMap;
+          infoEntries.push(`Normal map type: ${normalMapType}  anisotropy: ${anisotropy}`);
+        }
+        infoEntries.push(`Camera: [${f(camera.x)}, ${f(camera.y)}, ${f(camera.z)}]` +
+                         `  target: [${f(target.x)}, ${f(target.y)}, ${f(target.z)}]` +
+                         `  frameTime: ${this.meanFrameTime.toFixed(3)}`);
+        if (this.geomorphs) {
+          const counts = this.geomorphs.map(geomorph => this.formatNum(geomorph.index.count / 3).trim());
+          infoEntries.push(`Computed ${this.geomorphs.length} geomorphs with [${counts.join(', ')}] faces`);
+        }
+
+        if (this.octaInfo) {
+          infoEntries.push('');
+          for (const [keyword, value] of Object.entries(this.octaInfo)) {
+            if (['cameraFrame', 'geomorphNfaces'].includes(keyword)) continue;
+            if (keyword === 'processLog') infoEntries.push('');
+            const formattedKeyword = keyword
+              .replace(/([A-Z])/g, ' $1')  // Add space before capital letters.
+              .toLowerCase()
+              .replace(/^\w/, ch => ch.toUpperCase());  // Capitalize first letter.
+            infoEntries.push(`${formattedKeyword}: ${value}`);
+          }
+        }
+        const newText = infoEntries.join('\n');
+        if (newText !== this.infoDetails.textContent) this.infoDetails.textContent = newText;
+      },
+
+      createWireframeMesh() {  // Uses a mesh with a special wireframeMaterial.
+        const { geometry } = this.mesh;
+        // As documented in Three.js, "wireframeLinewidth" is ignored on most platforms.
+        const wireframeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true });
+        this.wireframeMesh = new THREE.Mesh(geometry, wireframeMaterial);
+        this.wireframeMesh.position.copy(this.mesh.getWorldPosition(new THREE.Vector3()));
+      },
+
+      getOrCreateLineTopology(meshGeometry) {
+        const vertexCount = meshGeometry.userData.actualVertexCount;
+        let topologyData = this.lineTopologyCache[vertexCount];
+        if (!topologyData) {
+          const edgeVertexIndices = this.computeEdgeVertexIndices(meshGeometry);
+          const lineGeometry = new LineSegmentsGeometry();
+          const initialPositions = new Float32Array(edgeVertexIndices.length * 3);  // Initialized later.
+          lineGeometry.setPositions(initialPositions);
+          topologyData = { edgeVertexIndices, lineGeometry };
+          this.lineTopologyCache[vertexCount] = topologyData;
+        }
+        return topologyData;
+      },
+
+      computeEdgeVertexIndices(meshGeometry) {
+        const meshIndices = meshGeometry.index.array;
+
+        // Note that "const maxVertexIndex = Math.max(...meshIndices);" could cause stack overflow on huge meshes.
+        let maxVertexIndex = 0;
+        for (const index of meshIndices) if (index > maxVertexIndex) maxVertexIndex = index;
+
+        let getEdgeId;  // Return a unique unoriented edge id.
+        if (0) {
+          getEdgeId = (a, b) => (a < b ? `${a}-${b}` : `${b}-${a}`);
+        } else if (maxVertexIndex < 65536) {
+          getEdgeId = (a, b) => {
+            const [min, max] = a < b ? [a, b] : [b, a];
+            return min * 65536 + max;
+          };
+        } else if (maxVertexIndex < 67108864) {  // For javascript safe integer range (double-precision mantissa).
+          getEdgeId = (a, b) => {
+            const [min, max] = a < b ? [a, b] : [b, a];
+            return min * 134217728 + max;  // 2**27.
+          };
+        } else {
+          getEdgeId = (a, b) => {
+            const [min, max] = a < b ? [a, b] : [b, a];
+            return BigInt(min) * BigInt(maxVertexIndex + 1) + BigInt(max);
+          };
+        }
+
+        const edgeSet = new Set();  // To avoid duplicate unoriented edges.
+        const edgeVertexIndices = [];  // Array to store the mesh indices of the endpoints of the line segments.
+        // We could use lineGeometry.fromMesh(this.mesh) but edgeVertexIndices would be needed for efficient update.
+
+        // Add an unoriented edge if not already in the set.
+        const addEdge = (vertexIndex1, vertexIndex2) => {
+          const edgeId = getEdgeId(vertexIndex1, vertexIndex2);
+          if (!edgeSet.has(edgeId)) {
+            edgeSet.add(edgeId);
+            edgeVertexIndices.push(vertexIndex1, vertexIndex2);
+          }
+        };
+
+        for (let i = 0; i < meshIndices.length; i += 3) {  // For each triangle.
+          const index0 = meshIndices[i], index1 = meshIndices[i + 1], index2 = meshIndices[i + 2];
+          addEdge(index0, index1); addEdge(index1, index2); addEdge(index2, index0);
+        }
+
+        return edgeVertexIndices;
+      },
+
+      createLineEdges() {  // Creates line segments along the (unoriented) edges of the mesh.
+        const lineMaterial = new LineMaterial({
+          color: this.CONFIG.rendering.edges.color,
+          linewidth: this.CONFIG.rendering.edges.linewidth,
+          resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
+          dashed: false,
+        });
+
+        // This use of LineSegments2 nicely supports thinner edges; however it does not support morph targets.
+        this.lineEdges = new LineSegments2(new LineSegmentsGeometry(), lineMaterial);  // Initially empty.
+        this.lineEdges.position.copy(this.mesh.getWorldPosition(new THREE.Vector3()));
+        this.updateLineTopology();
+      },
+
+      updateLineTopology() {
+        const { lineGeometry, edgeVertexIndices } = this.getOrCreateLineTopology(this.mesh.geometry);
+        this.lineEdges.geometry = lineGeometry;
+        this.currentEdgeVertexIndices = edgeVertexIndices;
+        this.updateLinePositions();
+      },
+
+      updateLinePositions() {
+        // See https://github.com/mrdoob/three.js/blob/master/examples/jsm/lines/LineSegmentsGeometry.js
+        // It does not use lineGeometry.attributes.position.array which is a dummy array of 24 elements.
+        const influence0 = this.getInfluence0(), influence1 = 1.0 - influence0;
+        const meshPositions = this.mesh.geometry.attributes.position;
+        const edgePositions = new Float32Array(this.currentEdgeVertexIndices.length * 3);
+
+        if (influence0 < 1e-8) {
+          // No morph - use original positions.
+          for (const [edgeVertexIndex, meshVertexIndex] of this.currentEdgeVertexIndices.entries()) {
+            for (let coordIndex = 0; coordIndex < 3; coordIndex++) {
+              edgePositions[edgeVertexIndex * 3 + coordIndex] =
+                meshPositions.getComponent(meshVertexIndex, coordIndex);
+            }
+          }
+        } else {
+          // Interpolate between original and morph target positions.
+          const [meshTargetPositions] = this.wireframeMesh.geometry.morphAttributes.position;
+          for (const [edgeVertexIndex, meshVertexIndex] of this.currentEdgeVertexIndices.entries()) {
+            for (let coordIndex = 0; coordIndex < 3; coordIndex++) {
+              edgePositions[edgeVertexIndex * 3 + coordIndex] =
+                influence1 * meshPositions.getComponent(meshVertexIndex, coordIndex) +
+                influence0 * meshTargetPositions.getComponent(meshVertexIndex, coordIndex);
+            }
+          }
+        }
+
+        this.lineEdges.geometry.setPositions(edgePositions);
+      },
+
+      async preUploadLineEdgesAsync() {
+        if (!this.mesh) return;
+        // Precompute and initialize the line edges (including GPU upload) to reduce pause when edges are enabled.
+        await new Promise(resolve => {
+          requestAnimationFrame(() => {
+            if (!this.lineEdges) this.createLineEdges();
+            // To force GPU upload, temporarily add to scene (but make invisible).
+            const wasInScene = this.lineEdges.parent;
+            if (!wasInScene) {
+              this.lineEdges.visible = false;
+              this.scene.add(this.lineEdges);
+              this.renderer.render(this.scene, this.camera);
+              this.scene.remove(this.lineEdges);
+              this.lineEdges.visible = true;
+            }
+            resolve();
+          });
+        });
+      },
+
+      stopDemoIfOngoing() {
+        if (this.buttonConfig.demo.active)
+          this.pressButton(this.buttonConfig.demo);
+      },
+
+      updateDemo() {
+        // Reset all state.
+        for (const [id, config] of Object.entries(this.buttonConfig)) {
+          if (config.active !== undefined && !config.button?.disabled &&
+              config.active !== this.CONFIG.buttons[id].active && id !== 'demo' && id !== 'fullscreen')
+            this.pressButton(config);
+        }
+        if (this.mesh.morphTargetInfluences) this.setSliderValue(1.0);
+
+        if (this.buttonConfig.demo.active) {
+          this.demoIndex = 0;
+          this.demoPauseStartTime = null;
+          this.preUploadLineEdgesAsync();
+          this.processDemoStage();
+        }
+      },
+
+      processDemoStage() {
+        const { keySequences } = this.CONFIG.demo;
+        const stageData = keySequences[this.demoIndex];
+        const { keys, pause = undefined } = stageData;
+        if (0) console.log(`Demo stage ${this.demoIndex}: "${stageData}"`);
+
+        // Press all buttons for this stage.
+        for (const key of keys) {
+          const config = Object.values(this.buttonConfig).find(c => c.key === key);
+          if (!config.button?.disabled)
+            this.pressButton(config);
+        }
+
+        // Set up pause if specified.
+        if (pause !== undefined) {
+          this.demoPauseStartTime = Date.now() / 1000;
+          this.demoPauseDuration = pause;
+        } else {
+          this.demoPauseStartTime = null;
+        }
+
+        // Advance to next stage.
+        this.demoIndex += 1;
+        if (this.demoIndex === keySequences.length)
+          this.demoIndex = 1;  // Skip the special initialization sequence at index 0.
+      },
+
+      updateEdges() {
+        if (!this.mesh) return;
+
+        if (this.buttonConfig.edges.active) {
+          const needMorphableEdgeObject = this.sliderActive || this.morphDuration;
+          if (needMorphableEdgeObject) {
+            if (this.lineEdges?.parent) this.scene.remove(this.lineEdges);
+            if (!this.wireframeMesh) this.createWireframeMesh();
+            if (!this.wireframeMesh.parent) this.scene.add(this.wireframeMesh);
+            if (this.wireframeMesh?.morphTargetInfluences)
+              this.wireframeMesh.morphTargetInfluences[0] = this.getInfluence0();
+          } else {
+            if (this.wireframeMesh?.parent) this.scene.remove(this.wireframeMesh);
+            if (!this.lineEdges) this.createLineEdges();
+            if (!this.lineEdges.parent) this.scene.add(this.lineEdges);
+            this.updateLineTopology();
+          }
+        } else {
+          if (this.wireframeMesh?.parent) this.scene.remove(this.wireframeMesh);
+          if (this.lineEdges?.parent) this.scene.remove(this.lineEdges);
+        }
+        this.requestRender();
+      },
+
+      updateUvGrid() {
+        this.updateMaterial();
+        this.updateTexturesPanel();
+      },
+
+      updateLumicycle() {
+        this.lumicyclePhase = 0;
+        this.updateLights();
+      },
+
+      toggleFullscreen() {
+        if (!document.fullscreenElement) {  // Enter fullscreen.
+          if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+          } else if (document.documentElement.webkitRequestFullscreen) { // Safari.
+            document.documentElement.webkitRequestFullscreen();
+          }
+        } else {  // Exit fullscreen.
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          } else if (document.webkitExitFullscreen) { // Safari.
+            document.webkitExitFullscreen();
+          }
+        }
+        // Rerender after transition.
+        setTimeout(() => { this.requestRender(); }, 100);
+      },
+
+      updateReset() {
+        if (!this.buttonConfig.demo.active) {
+          if (this.buttonConfig.lumicycle.active) this.pressButton(this.buttonConfig.lumicycle);
+          if (this.buttonConfig.rocking.active) this.pressButton(this.buttonConfig.rocking);
+        }
+        this.resetView();
+      },
+
+      // Read `this.gridUvToSphere`, a 2D table of sphere points, used to map (u, v) coordinates to the sphere.
+      startLoadingGridUvToSphere(egrid=128) {
+        this.buttonConfig.sphere.button.disabled = true;
+        const url = `./octaflat_eg${egrid}.sph_grid.bin`;
+
+        this.gridLoadingPromise = fetch(url)
+          .then(response => {
+            if (!response.ok)
+              throw new Error(`Failed to fetch grid file: ${response.status} ${response.statusText}`);
+            return response.arrayBuffer();
+          })
+          .then(buffer => {
+            const view = new DataView(buffer);
+            const ENDIAN_FLAG = false;  // Big-endian is indicated by false.
+            const gridSize = view.getUint16(0, ENDIAN_FLAG);
+            const pointCount = (gridSize + 1) * (gridSize + 1);
+            const expectedByteLength = 2 + (pointCount * 3 * 2);
+            if (buffer.byteLength !== expectedByteLength)
+              throw new Error(`Invalid file size: expected ${expectedByteLength} bytes, got ${buffer.byteLength}`);
+
+            const coords = new Array(pointCount * 3);
+            const floatFromUint16 = (value) => ((value - 1) / 65534) * 2.0 - 1.0;  // [1, 65535] -> [-1.0, 1.0].
+
+            for (let pointIndex = 0; pointIndex < pointCount; pointIndex++) {
+              const baseByteOffset = 2 + (pointIndex * 3 * 2);
+              const baseCoordIndex = pointIndex * 3;
+
+              for (let coordIndex = 0; coordIndex < 3; coordIndex++) {
+                const uint16Value = view.getUint16(baseByteOffset + coordIndex * 2, ENDIAN_FLAG);
+                coords[baseCoordIndex + coordIndex] = floatFromUint16(uint16Value);
+              }
+            }
+            this.gridUvToSphere = coords;
+
+            this.buttonConfig.sphere.button.disabled = false;
+            this.updateButtons();
+            if (!this.automationMode) {
+              // If the mode was activated by a URL param (even with button disabled), enable it now.
+              if (this.buttonConfig.sphere.active && this.mesh)
+                requestAnimationFrame(() => { this.updateSphere(); });
+              if (this.buttonConfig.octahedron.active && this.mesh)
+                requestAnimationFrame(() => { this.updateOctahedron(); });
+            }
+          })
+          .catch(error => {
+            console.error('Failed to load sphere grid:', error);
+            throw error;
+          });
+      },
+
+      /*
+       * Sample an array of points on the sphere using bilinear interpolation.
+       * @param {THREE.BufferAttribute} uvAttribute - buffer of (u, v) coordinates: [u1, v1, ...]
+       * @param {Float32Array|Array} [resultArray] - Optional pre-allocated flat array to store results
+       * @returns {Float32Array|Array} - Flat array of interpolated 3D points: [x1, y1, z1, x2, y2, z2, ...]
+       */
+      sphereMapFromUv(uvAttribute, resultArray=null) {
+        if (!this.gridUvToSphere) throw new Error('Assertion error');
+        const pointCount = uvAttribute.count;
+        const egrid = Math.sqrt(this.gridUvToSphere.length / 3) - 1;
+        const pointArray = resultArray || new Float32Array(pointCount * 3);  // [egrid + 1, egrid + 1].
+
+        for (let pointIndex = 0; pointIndex < pointCount; pointIndex++) {
+          const u = uvAttribute.getComponent(pointIndex, 0);
+          const v = uvAttribute.getComponent(pointIndex, 1);
+          if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0)
+            throw new Error(`Invalid UV at index ${pointIndex}: (${u}, ${v}); values must be in range [0, 1].`);
+
+          // Calculate the grid cell indices and interpolation factors.
+          const iu0 = Math.min(Math.floor(u * egrid), egrid - 1), iu1 = iu0 + 1;
+          const iv0 = Math.min(Math.floor(v * egrid), egrid - 1), iv1 = iv0 + 1;
+          const fu = u * egrid - iu0;
+          const fv = v * egrid - iv0;
+
+          const index00 = (iv0 * (egrid + 1) + iu0) * 3, index10 = (iv0 * (egrid + 1) + iu1) * 3;
+          const index01 = (iv1 * (egrid + 1) + iu0) * 3, index11 = (iv1 * (egrid + 1) + iu1) * 3;
+
+          // Perform bilinear interpolation for each coordinate.
+          const resultIndex = pointIndex * 3;
+          let sumSquares = 0;
+          for (let coordIndex = 0; coordIndex < 3; coordIndex++) {
+            const value = ((1.0 - fu) * (1.0 - fv) * this.gridUvToSphere[index00 + coordIndex] +
+                           fu * (1.0 - fv) * this.gridUvToSphere[index10 + coordIndex] +
+                           (1.0 - fu) * fv * this.gridUvToSphere[index01 + coordIndex] +
+                           fu * fv * this.gridUvToSphere[index11 + coordIndex]);
+            pointArray[resultIndex + coordIndex] = value;
+            sumSquares += value * value;
+          }
+
+          const reciprocalLength = 1 / Math.sqrt(sumSquares);
+          for (let coordIndex = 0; coordIndex < 3; coordIndex++)
+            pointArray[resultIndex + coordIndex] *= reciprocalLength;
+        }
+
+        return pointArray;
+      },
+
+      octahedronMapFromUv(uvAttribute, resultArray=null, flatnessFactor=0.01) {
+        const pointCount = uvAttribute.count;
+        const pointArray = resultArray || new Float32Array(pointCount * 3);
+
+        for (let pointIndex = 0; pointIndex < pointCount; pointIndex++) {
+          const u = uvAttribute.getComponent(pointIndex, 0);
+          const v = uvAttribute.getComponent(pointIndex, 1);
+          if (u < 0.0 || u > 1.0 || v < 0.0 || v > 1.0)
+            throw new Error(`Invalid UV at index ${pointIndex}: (${u}, ${v}); values must be in range [0, 1].`);
+
+          const x = (u - 0.5) * 2.0;
+          const y = (v - 0.5) * 2.0;
+          const absSum = Math.abs(x) + Math.abs(y);
+          let newX = x, newY = y;
+          const newZ = 1.0 - absSum;
+          if (absSum > 1.0) {  // Back face of octahedron (foldover).
+            newX = Math.sign(x) * (1.0 - Math.abs(y));
+            newY = Math.sign(y) * (1.0 - Math.abs(x));
+          }
+
+          const resultIndex = pointIndex * 3;
+          pointArray[resultIndex] = newX;
+          pointArray[resultIndex + 1] = -newY;
+          pointArray[resultIndex + 2] = newZ * flatnessFactor;
+        }
+
+        return pointArray;
+      },
+
+      activateMorph() {
+        this.morphDuration = this.CONFIG.morph[this.morphState].duration;
+        this.morphTime = 0.0;
+        this.morphTargetValue = this.sliderValue < 0.5 ? 1.0 : 0.0;
+      },
+
+      deactivateMorph(targetValue) {
+        if (!this.morphState) return;
+        this.buttonConfig[this.morphState].active = false;
+        this.morphDuration = this.CONFIG.morph[this.morphState].exitDuration;
+        this.morphTime = 0.0;
+        this.morphTargetValue = targetValue;
+      },
+
+      shallowCloneGeometry(geometry) {
+        // https://threejs.org/docs/#api/en/core/BufferGeometry.morphAttributes
+        // "Note: Once the geometry has been rendered, the morph attribute data cannot be changed.  You will have
+        // to call .dispose(), and create a new instance of BufferGeometry."
+        // https://github.com/mrdoob/three.js/issues/24243
+        // Note that we never update the morph attributes; instead we shallow-clone and modify the geometry.
+        const newGeometry = new THREE.BufferGeometry();
+        newGeometry.name = geometry.name;
+        newGeometry.userData = { ...geometry.userData };
+
+        if (geometry.index) newGeometry.setIndex(geometry.index);  // Share by reference; not cloned.
+
+        for (const [name, attribute] of Object.entries(geometry.attributes))
+          newGeometry.setAttribute(name, attribute);  // Share by reference; not cloned.
+
+        if (1) {  // Assert that there are no morph attributes.
+          if (Object.keys(geometry.morphAttributes).length > 0) throw new Error('?');
+          if (geometry.attributes.morphUv) throw new Error('?');
+        } else {  // Copy morph attributes.
+          for (const [name, morphAttributeArray] of Object.entries(geometry.morphAttributes))
+            newGeometry.morphAttributes[name] = morphAttributeArray;
+        }
+
+        return newGeometry;
+      },
+
+      updateGeometry(geometry) {
+        if (!geometry) throw new Error('?');
+        if (this.mesh.geometry !== geometry) {
+          this.mesh.geometry = geometry;
+          this.patchVertexShaderToSupportUvMorph(this.mesh);
+          this.mesh.updateMorphTargets();
+        }
+
+        if (this.wireframeMesh && this.wireframeMesh.geometry !== geometry) {
+          this.wireframeMesh.geometry = geometry;
+          this.wireframeMesh.updateMorphTargets();
+        }
+        this.setInfo();
+      },
+
+      updateMorph(newMorphState, morphGeometry) {
+        if (newMorphState !== this.morphState) {
+          if (this.morphState) {
+            this.setSliderValue(1.0);
+            this.buttonConfig[this.morphState].active = false;
+          }
+          this.morphState = newMorphState;
+        }
+        this.updateGeometry(newMorphState === 'geomorphs' ? this.selectGeomorphGeometry() : morphGeometry);
+
+        if (this.buttonConfig[newMorphState].active)
+          this.activateMorph();
+        else
+          this.deactivateMorph(1.0);
+
+        this.updateEdges();
+        this.updateButtons();
+      },
+
+      updateGeomorphs() {
+        const newMorphState = 'geomorphs';
+        if (!this.geomorphs) {
+          this.geomorphs = [];
+          let fineGeometry = this.originalGeometry;
+          const { simplificationFactor, defaultMinVertexCount, overrideMinVertexCount } = this.CONFIG.morph;
+          let minVertexCount = defaultMinVertexCount;
+          if (this.octaInfo?.geomorphNfaces)
+            minVertexCount = Math.floor(Number(this.octaInfo.geomorphNfaces.split(/\s+/)[0]) / 2);
+          if (overrideMinVertexCount)
+            minVertexCount = overrideMinVertexCount;
+          while (1) {
+            const vertexCount = fineGeometry.userData.actualVertexCount;
+            const desiredVertexCount = Math.max(Math.floor(vertexCount * simplificationFactor), minVertexCount);
+            if (desiredVertexCount >= vertexCount) break;
+            const simplifiedGeometry = this.computeSimplifiedGeometry(fineGeometry, desiredVertexCount);
+            if (!simplifiedGeometry) break;
+            if (this.CONFIG.debug) console.log({ coarseVertexCount: simplifiedGeometry.userData.actualVertexCount });
+            const morphGeometry = this.computeGeomorph(fineGeometry, desiredVertexCount);
+            this.geomorphs.push(morphGeometry);
+            fineGeometry = simplifiedGeometry;
+          }
+          if (this.CONFIG.debug) this.coarsestGeometry = fineGeometry;  // To inspect mesh in browser console.
+        }
+        if (this.geomorphs.length)
+          this.updateMorph(newMorphState, null);
+      },
+
+      determineGeomorph() {
+        const numGeomorphs = this.geomorphs.length;
+        const scaledValue = (1.0 - this.sliderValue) * numGeomorphs;
+        const index = scaledValue === numGeomorphs ? numGeomorphs - 1 : Math.floor(scaledValue);
+        const influence0 = scaledValue - index;
+        return { index, influence0 };
+      },
+
+      selectGeomorphGeometry() {
+        return this.geomorphs[this.determineGeomorph().index];
+      },
+
+      updateDomainMorph(newMorphState, mapFromUv) {
+        let geometry = this.morphGeometryCache[newMorphState];
+        if (!geometry) {
+          geometry = this.morphGeometryCache[newMorphState] = this.shallowCloneGeometry(this.originalGeometry);
+
+          const uvAttribute = geometry.attributes.uv;
+          if (!uvAttribute) throw new Error('Mesh does not have UV coordinates');
+          const domainPositions = mapFromUv(uvAttribute);
+          const scale = this.rmsRadius;
+          const translate = this.centerPoint.toArray();
+          for (let i = 0; i < domainPositions.length; i += 3) {
+            for (let coordIndex = 0; coordIndex < 3; coordIndex++)
+              domainPositions[i + coordIndex] = domainPositions[i + coordIndex] * scale + translate[coordIndex];
+          }
+          geometry.morphAttributes.position = [new THREE.BufferAttribute(new Float32Array(domainPositions), 3)];
+        }
+        this.updateMorph(newMorphState, geometry);
+      },
+
+      updateSphere() {
+        this.updateDomainMorph('sphere', this.sphereMapFromUv.bind(this));
+      },
+
+      updateOctahedron() {
+        this.updateDomainMorph('octahedron', this.octahedronMapFromUv.bind(this));
+      },
+
+      computeMean(array) {
+        if (array.length === 0) return NaN;
+        const sum = array.reduce((acc, value) => acc + value, 0);
+        return sum / array.length;
+      },
+
+      computeMeanFrameTime() {
+        if (this.automationMode) {
+          this.meanFrameTime = this.CONFIG.camera.rockingPeriod / window.frameCount;
+        } else {
+          const currentTime = performance.now() / 1000;
+          const rawDeltaTime = currentTime - (this.lastFrameTime || currentTime);
+          const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+          const instantDeltaTime = clamp(rawDeltaTime, 0.002, 0.1);
+          this.lastFrameTime = currentTime;
+
+          this.frameTimeHistory.push(instantDeltaTime);
+          while (this.frameTimeHistory.length > this.frameTimeHistoryMaxLength) this.frameTimeHistory.shift();
+
+          this.meanFrameTime = this.computeMean(this.frameTimeHistory);
+        }
+      },
+
+      requestRender() {
+        this.lastInteractionTime = Date.now() / 1000;
+        if (!this.needsRender) {
+          this.needsRender = true;
+          requestAnimationFrame(() => this.renderLoop());
+        }
+      },
+
+      setupAutomation() {
+        this.infoDiv.style.display = 'none';
+        this.sliderContainer.style.display = 'none';
+        this.buttonBar.style.display = 'none';
+        this.texturesPanel.style.display = 'none';
+        this.helpOverlay.style.display = 'none';
+
+        if (0) this.scene.background = null;  // Transparent might be useful for thumbnail.
+
+        this.originalCameraPosition = this.camera.position.clone();
+        this.automationInProgress = true;
+        window.puppeteerReady = true;
+        console.log('AUTOMATION_READY');
+        this.requestRender();
+      },
+
+      applyRockingRotation(rockingPhaseDelta) {
+        const previousRockingPhase = this.rockingPhase;
+        this.rockingPhase += rockingPhaseDelta;
+        const deltaAmplitude = Math.sin(this.rockingPhase) - Math.sin(previousRockingPhase);
+        const { rockingDegrees } = this.CONFIG.camera;
+        const angle = rockingDegrees / 2 * (TAU / 360) * deltaAmplitude;
+        // We perform rocking about the Y axis through the origin (which should equal this.camera.target).
+        const rotationMatrix = new THREE.Matrix4().makeRotationY(angle);
+        this.camera.position.applyMatrix4(rotationMatrix);
+      },
+
+      renderLoop() {
+        if (!this.needsRender) return;
+
+        this.computeMeanFrameTime();
+        const deltaTime = this.meanFrameTime;
+
+        if (this.model) {
+          if (this.buttonConfig.lumicycle.active) {
+            const { lumicyclePeriod } = this.CONFIG.lighting;
+            this.lumicyclePhase += (TAU / lumicyclePeriod) * deltaTime;
+            this.updateLights();
+          }
+          if (this.buttonConfig.rocking.active) {
+            const { rockingPeriod } = this.CONFIG.camera;
+            const rockingPhaseDelta = (TAU / rockingPeriod) * deltaTime;
+            this.applyRockingRotation(rockingPhaseDelta);
+          }
+          if (this.buttonConfig.demo.active && this.demoPauseStartTime !== null) {
+            const elapsedPauseTime = Date.now() / 1000 - this.demoPauseStartTime;
+            if (elapsedPauseTime >= this.demoPauseDuration) {
+              this.demoPauseStartTime = null;  // End the pause.
+              this.processDemoStage();
+            }
+          } else if (this.morphDuration) {
+            const remainingTime = this.morphDuration - this.morphTime;
+            const fraction = Math.min(Math.max(deltaTime / remainingTime, 0.0), 1.0);
+            const newValue = this.sliderValue + (this.morphTargetValue - this.sliderValue) * fraction;
+            this.setSliderValue(newValue);
+            this.morphTime += deltaTime;
+            if (this.morphTime >= this.morphDuration) {
+              if (this.buttonConfig[this.morphState].active) {
+                this.morphTime = 0;
+                this.morphTargetValue = 1.0 - this.sliderValue;
+                if (this.buttonConfig.demo.active) this.processDemoStage();
+              } else {
+                this.morphDuration = 0.0;
+                this.updateEdges();
+                this.setInfo();
+              }
+            }
+          } else if (this.buttonConfig.demo.active) {
+            this.processDemoStage();
+          }
+        }
+
+        const controlsChanged = this.controls.update();  // True if damping or other internal state changes occurred.
+        if (controlsChanged) this.lastInteractionTime = Date.now() / 1000;
+
+        this.renderer.render(this.scene, this.camera);
+        this.renderCount += 1;
+        if (0 && this.renderCount % 60 === 0) console.log(`Rendered ${this.renderCount} frames`);
+
+        if (this.automationMode && this.automationInProgress) {
+          if (window.puppeteerCallback) {
+            const frameData = this.renderer.domElement.toDataURL('image/png');
+            const frameNumber = window.capturedFrames, totalFrames = window.frameCount;
+            window.puppeteerCallback({ frameNumber, frameData, totalFrames });
+          }
+
+          window.capturedFrames += 1;
+          if (window.capturedFrames === window.frameCount) {
+            this.automationInProgress = false;
+            console.log('AUTOMATION_COMPLETE');
+          }
+        }
+
+        const timeSinceLastInteraction = Date.now() / 1000 - this.lastInteractionTime;
+        const thresholdSeconds = 2.0;
+        const shouldContinueRendering =
+          controlsChanged || timeSinceLastInteraction < thresholdSeconds ||
+          this.buttonConfig.lumicycle.active || this.buttonConfig.rocking.active || this.morphDuration ||
+          this.demoPauseStartTime || this.automationInProgress;
+
+        if (shouldContinueRendering)
+          requestAnimationFrame(() => this.renderLoop());
+        else
+          this.needsRender = false;  // We can pause.
+      },
+    };
+
+    window.addEventListener('load', () => app.init());
+    window.app = app;
+  </script>
+</body>
+</html>

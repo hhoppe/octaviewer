@@ -1,0 +1,16 @@
+*~
+
+RCS/
+Old/
+node_modules/
+data/*.high_quality.glb
+
+.npmrc
+create_index.py
+create_thumbnail.js
+eslint.config.js
+index_template.html
+launch_python_http_server.sh
+package.json
+package-lock.json
+pyproject.toml
