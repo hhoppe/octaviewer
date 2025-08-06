@@ -651,6 +651,7 @@
           defaultFov: 45.0,
           rockingPeriod: 5.0,    // Rocking motion period in seconds.
           rockingDegrees: 30.0,  // Arc in degrees.
+          backView: false,
         },
         rendering: {
           antialias: true,
@@ -788,21 +789,9 @@
 
       // Variables:
       buttonConfig: {},
-      mainCanvas: document.getElementById('canvas'),
-      infoDiv: document.getElementById('info'),
-      infoSummary: document.getElementById('info-summary'),
-      infoDetails: document.getElementById('info-details'),
-      infoToggle: document.getElementById('info-toggle'),
-      sliderContainer: document.getElementById('slider-container'),
-      sliderTrack: document.getElementById('slider-track'),
-      sliderThumb: document.getElementById('slider-thumb'),
       sliderValue: 1.0,
       sliderActive: false,
       morphState: null,
-      buttonBar: document.getElementById('button-bar'),
-      texturesPanel: document.getElementById('textures-panel'),
-      helpOverlay: document.getElementById('help-overlay'),
-      helpContent: document.getElementById('help-content'),
       needsRender: false,
       clickTarget: null,  // Record event target at mousedown, to match with target on mouseup.
       lumicyclePhase: 0,
@@ -825,6 +814,19 @@
       renderCount: 0,
 
       init() {
+        this.mainCanvas = document.getElementById('canvas');
+        this.infoDiv = document.getElementById('info');
+        this.infoSummary = document.getElementById('info-summary');
+        this.infoDetails = document.getElementById('info-details');
+        this.infoToggle = document.getElementById('info-toggle');
+        this.sliderContainer = document.getElementById('slider-container');
+        this.sliderTrack = document.getElementById('slider-track');
+        this.sliderThumb = document.getElementById('slider-thumb');
+        this.buttonBar = document.getElementById('button-bar');
+        this.texturesPanel = document.getElementById('textures-panel');
+        this.helpOverlay = document.getElementById('help-overlay');
+        this.helpContent = document.getElementById('help-content');
+
         window.addEventListener('error', (event) => {
           console.error('Error caught:', event.error);
           this.infoSummary.textContent = 'Error: ' + event.error.message;
@@ -1046,6 +1048,7 @@
 
       dragSlider(event) {
         if (!this.sliderActive) return;
+        event.preventDefault();  // Prevent default drag behavior and text selection if mouse leaves slider.
         this.stopDemoIfOngoing();
         const { sliderTrackHeight, sliderTrackTop } = this.getSliderDimensions();
         const value0 = (event.clientY - sliderTrackTop) / sliderTrackHeight;
@@ -1264,7 +1267,10 @@
 
         this.infoToggle.addEventListener('click', () => { this.pressButton(this.buttonConfig.info); });
 
-        this.helpOverlay.addEventListener('click', () => { this.pressButton(this.buttonConfig.help); });
+        this.helpOverlay.addEventListener('click', () => {
+          if (event.target === this.helpOverlay)  // I.e., only outside the help-window.
+            this.pressButton(this.buttonConfig.help);
+        });
 
         document.addEventListener('fullscreenchange', () => {
           this.buttonConfig.fullscreen.active = Boolean(document.fullscreenElement);
@@ -1290,6 +1296,8 @@
         this.immediatelyStopCamera();
         if (this.cameraData) {
           this.camera.position.copy(this.cameraData.position.clone().sub(this.centerPoint));
+          if (this.CONFIG.camera.backView)
+            this.camera.position.copy(this.camera.position.negate());
           this.camera.fov = Math.atan(this.cameraData.zoom) * 2 * (360 / TAU);
           this.updateCamera();
         }
@@ -1999,7 +2007,7 @@
           if (['position', 'normal', 'tangent'].includes(name))
             morphGeometry.morphAttributes[name] = [new THREE.BufferAttribute(morphedAttribute, itemSize)];
           else if (name === 'uv')
-            morphGeometry.setAttribute('morphUv', new THREE.BufferAttribute(morphedAttribute, 2));
+            morphGeometry.setAttribute('morphTargetUv', new THREE.BufferAttribute(morphedAttribute, 2));
           else
             throw Error('?');
         }
@@ -2109,7 +2117,7 @@
 
       patchVertexShaderToSupportUvMorph(mesh) {
         const { geometry, material } = mesh;
-        if (geometry.attributes.morphUv) {
+        if (geometry.attributes.morphTargetUv) {
           material.onBeforeCompile = (shader) => {
             // https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderChunk/uv_vertex.glsl.js
             shader.vertexShader = shader.vertexShader.replace(
@@ -2118,7 +2126,7 @@
                  #include <${''}morphtarget_pars_vertex>
 
                  #ifdef USE_MORPHTARGETS
-                   attribute vec2 morphUv;
+                   attribute vec2 morphTargetUv;
                  #endif
               `,
             );
@@ -2128,7 +2136,7 @@
               `
                 vec2 uvMorphed = vec3(uv, 1).xy;
                 #ifdef USE_MORPHTARGETS
-                  uvMorphed = mix(uv, morphUv, morphTargetInfluences[0]);
+                  uvMorphed = mix(uv, morphTargetUv, morphTargetInfluences[0]);
                 #endif
 
                 #if defined( USE_UV ) || defined( USE_ANISOTROPY )
@@ -2870,7 +2878,7 @@
 
         if (1) {  // Assert that there are no morph attributes.
           if (Object.keys(geometry.morphAttributes).length > 0) throw new Error('?');
-          if (geometry.attributes.morphUv) throw new Error('?');
+          if (geometry.attributes.morphTargetUv) throw new Error('?');
         } else {  // Copy morph attributes.
           for (const [name, morphAttributeArray] of Object.entries(geometry.morphAttributes))
             newGeometry.morphAttributes[name] = morphAttributeArray;

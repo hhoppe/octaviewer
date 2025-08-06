@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Interactive gallery of 3D models created using topology simplification, spherical parameterization, appearance-preserving simplification, and progressive meshes. View and explore high-quality 3D meshes with seamless texturing.">
   <title>Spherically parameterized progressive meshes</title>
+  <link rel="preload" as="image" href="images/nefertiti_atlas_rgb.jpg">
+  <link rel="preload" as="image" href="images/nefertiti_octaflat_rgb.jpg">
   <style>
     :root {
       --border-radius: 8px;
@@ -234,131 +236,14 @@
 </head>
 
 <body>
-  <script>
-    const IS_IOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
-
-    let firstPlayingVideo = null;
-    let morphVideosEnabled = false;
-
-    function getInitialMorphVideoState() {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get('sphereMorph') === 'true';
-    }
-
-    function toggleVideos(enabled) {
-      morphVideosEnabled = enabled;
-      const galleryItems = document.querySelectorAll('.gallery-item');
-
-      galleryItems.forEach(item => {
-        const video = item.querySelector('video');
-        if (!video) return;
-
-        if (enabled) {
-          video.play().catch(() => {
-            // Ignore play errors.
-          });
-        } else {
-          video.pause();
-          video.currentTime = 0;
-          item.classList.remove('playing');
-          video.hasBeenSynced = false;
-        }
-      });
-
-      if (!enabled)
-        firstPlayingVideo = null;
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      // Open all external links in new tabs.
-      document.querySelectorAll('a[href^="http"]').forEach(link => {
-        if (!link.hasAttribute('target')) {
-          link.target = '_blank';
-          link.rel = 'noopener noreferrer';
-        }
-      });
-
-      const galleryItems = document.querySelectorAll('.gallery-item');
-      const morphCheckbox = document.getElementById('morphVideos');
-
-      const initialState = getInitialMorphVideoState();
-      morphCheckbox.checked = initialState;
-      morphVideosEnabled = initialState;
-
-      morphCheckbox.addEventListener('change', (e) => {
-        toggleVideos(e.target.checked);
-      });
-
-      galleryItems.forEach(item => {
-        const { url } = item.dataset;
-
-        if (url) {
-          item.addEventListener('click', (e) => {
-            if (IS_IOS && e.target.tagName === 'VIDEO') {
-              // Prevent video from opening full screen on iOS when clicked.
-              e.preventDefault();
-              e.stopPropagation();
-              return false;
-            }
-            window.open(url, '_blank');
-            return true;
-          });
-        }
-
-        const video = document.createElement('video');
-        Object.assign(video, {
-          src: item.dataset.videoSrc,
-          autoplay: false,
-          loop: true,
-          muted: true,
-          playsinline: true,
-          'webkit-playsinline': '',  // For IS_IOS.
-          tabIndex: -1,
-          hasBeenSynced: false,
-        });
-
-        video.addEventListener('playing', () => {
-          if (!morphVideosEnabled) {
-            video.pause();
-            return;
-          }
-
-          if (video.hasBeenSynced) return;
-          video.hasBeenSynced = true;
-          if (!firstPlayingVideo)
-            firstPlayingVideo = video;
-          else
-            video.currentTime = firstPlayingVideo.currentTime;
-          item.classList.add('playing');
-        });
-
-        video.addEventListener('pause', () => {
-          item.classList.remove('playing');
-        });
-
-        item.appendChild(video);
-      });
-
-      if (initialState)
-        toggleVideos(true);
-
-      // Handle iOS touch events to prevent default video behavior.
-      if (IS_IOS) {
-        document.addEventListener('touchstart', (e) => {
-          if (e.target.tagName === 'VIDEO') e.preventDefault();
-        }, { passive: false });
-      }
-    });
-  </script>
-
   <header>
     <h1>Spherically parameterized progressive meshes</h1>
     <div class="description">
       <p>
-        The goal is to render highly detailed 3D models in a web browser from compact files.<br/>
-        The approach is to minimize mesh complexity by transferring normals and color attributes to textures.<br/>
-        This collection of 3D models is created using:
+        We aim to render detailed 3D models (e.g., scan reconstructions) in a web browser from compact files.<br/>
+        The approach is to minimize mesh complexity by transferring normals and color attributes to textures,<br/>
+        and to use a spherical parameterization for improved continuity, level-of-detail, and compression.<br/>
+        The collection of 3D models below is created using:
       </p>
       <ul>
         <li><b>Min-cycle topology simplification</b> to pinch handles and tunnels
@@ -378,7 +263,7 @@
       <div class="comparison-container">
         <figure class="comparison-item">
           <div class="comparison-item-image">
-            <img src="images/nefertiti_atlas_rgb.jpg" width="310" height="512" alt="Texture atlas with multiple charts">
+            <img src="images/nefertiti_atlas_rgb.jpg" width="310" height="512" alt="Texture atlas with multiple charts"/>
           </div>
           <figcaption>
             Texture atlases may have hundreds of charts with texturing discontinuities.
@@ -386,7 +271,7 @@
         </figure>
         <figure class="comparison-item">
           <div class="comparison-item-image">
-            <img src="images/nefertiti_octaflat_rgb.jpg" width="512" height="512" alt="Spherical parameterization">
+            <img src="images/nefertiti_octaflat_rgb.jpg" width="512" height="512" alt="Spherical parameterization"/>
           </div>
           <figcaption>
             Spherical parameterization allows a single chart and a seamless reconstruction.<!--
@@ -396,83 +281,211 @@
       </div>
 
       <p>
-        Click a thumbnail to open an interactive 3D viewer in a new tab.
-        See <a href="https://hhoppe.com/proj/octaflat/">the project page</a> for more info.
+        Select a thumbnail to open an interactive 3D viewer in a new tab.
+        See the <a href="https://hhoppe.com/proj/octaflat/">project page</a> for more info.
       </p>
     </div>
   </header>
 
-  <div class="video-controls">
-    <input type="checkbox" id="morphVideos">
-    <label for="morphVideos">Show sphere morphs</label>
-  </div>
+  <main>
+    <div class="video-controls">
+      <input type="checkbox" id="morphVideos">
+      <label for="morphVideos">Show sphere morphs</label>
+    </div>
 
-  <div class="gallery-container">
-<button class="gallery-item" data-url="octaviewer.html?model=data/loewenfeld.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/loewenfeld.octaflat.mp4">
-      <img src="thumbnails/loewenfeld.octaflat.jpg" alt="loewenfeld.octaflat">
-      <span class="size-overlay">904 kB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/fangyilid.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/fangyilid.octaflat.mp4">
-      <img src="thumbnails/fangyilid.octaflat.jpg" alt="fangyilid.octaflat">
-      <span class="size-overlay">5.8 MB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/xyzdragon.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/xyzdragon.octaflat.mp4">
-      <img src="thumbnails/xyzdragon.octaflat.jpg" alt="xyzdragon.octaflat">
-      <span class="size-overlay">1.6 MB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/nefertiti.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/nefertiti.octaflat.mp4">
-      <img src="thumbnails/nefertiti.octaflat.jpg" alt="nefertiti.octaflat">
-      <span class="size-overlay">3.0 MB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/transmission.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/transmission.octaflat.mp4">
-      <img src="thumbnails/transmission.octaflat.jpg" alt="transmission.octaflat">
-      <span class="size-overlay">1.5 MB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/guanglid.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/guanglid.octaflat.mp4">
-      <img src="thumbnails/guanglid.octaflat.jpg" alt="guanglid.octaflat">
-      <span class="size-overlay">4.7 MB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/happy_vrip.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/happy_vrip.octaflat.mp4">
-      <img src="thumbnails/happy_vrip.octaflat.jpg" alt="happy_vrip.octaflat">
-      <span class="size-overlay">311 kB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/hydria.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/hydria.octaflat.mp4">
-      <img src="thumbnails/hydria.octaflat.jpg" alt="hydria.octaflat">
-      <span class="size-overlay">804 kB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/eagle.octaflat.low_quality.glb&demo=true&config.material.doubleSide=true" data-video-src="thumbnails/eagle.octaflat.mp4">
-      <img src="thumbnails/eagle.octaflat.jpg" alt="eagle.octaflat">
-      <span class="size-overlay">1.9 MB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/lucy.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/lucy.octaflat.mp4">
-      <img src="thumbnails/lucy.octaflat.jpg" alt="lucy.octaflat">
-      <span class="size-overlay">1.0 MB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/kneeling.octaflat.low_quality.glb&demo=true&config.material.doubleSide=true" data-video-src="thumbnails/kneeling.octaflat.mp4">
-      <img src="thumbnails/kneeling.octaflat.jpg" alt="kneeling.octaflat">
-      <span class="size-overlay">4.6 MB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/dragon_vrip.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/dragon_vrip.octaflat.mp4">
-      <img src="thumbnails/dragon_vrip.octaflat.jpg" alt="dragon_vrip.octaflat">
-      <span class="size-overlay">347 kB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/guang.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/guang.octaflat.mp4">
-      <img src="thumbnails/guang.octaflat.jpg" alt="guang.octaflat">
-      <span class="size-overlay">6.0 MB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/womanchild.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/womanchild.octaflat.mp4">
-      <img src="thumbnails/womanchild.octaflat.jpg" alt="womanchild.octaflat">
-      <span class="size-overlay">2.2 MB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/armadillo.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/armadillo.octaflat.mp4">
-      <img src="thumbnails/armadillo.octaflat.jpg" alt="armadillo.octaflat">
-      <span class="size-overlay">258 kB</span>
-    </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/fangyibase.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/fangyibase.octaflat.mp4">
-      <img src="thumbnails/fangyibase.octaflat.jpg" alt="fangyibase.octaflat">
-      <span class="size-overlay">6.0 MB</span>
-    </button>
+    <div class="gallery-container">
+<button class="gallery-item" data-url="octaviewer.html?model=data/loewenfeld.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/loewenfeld.octaflat.mp4" aria-label="Open Octaviewer on loewenfeld.octaflat">
+        <img src="thumbnails/loewenfeld.octaflat.jpg" alt="loewenfeld.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">904 kB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/fangyilid.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/fangyilid.octaflat.mp4" aria-label="Open Octaviewer on fangyilid.octaflat">
+        <img src="thumbnails/fangyilid.octaflat.jpg" alt="fangyilid.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">5.8 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/xyzdragon.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/xyzdragon.octaflat.mp4" aria-label="Open Octaviewer on xyzdragon.octaflat">
+        <img src="thumbnails/xyzdragon.octaflat.jpg" alt="xyzdragon.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">1.6 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/nefertiti.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/nefertiti.octaflat.mp4" aria-label="Open Octaviewer on nefertiti.octaflat">
+        <img src="thumbnails/nefertiti.octaflat.jpg" alt="nefertiti.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">3.0 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/transmission.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/transmission.octaflat.mp4" aria-label="Open Octaviewer on transmission.octaflat">
+        <img src="thumbnails/transmission.octaflat.jpg" alt="transmission.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">1.5 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/guanglid.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/guanglid.octaflat.mp4" aria-label="Open Octaviewer on guanglid.octaflat">
+        <img src="thumbnails/guanglid.octaflat.jpg" alt="guanglid.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">4.7 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/happy_vrip.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/happy_vrip.octaflat.mp4" aria-label="Open Octaviewer on happy_vrip.octaflat">
+        <img src="thumbnails/happy_vrip.octaflat.jpg" alt="happy_vrip.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">311 kB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/hydria.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/hydria.octaflat.mp4" aria-label="Open Octaviewer on hydria.octaflat">
+        <img src="thumbnails/hydria.octaflat.jpg" alt="hydria.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">804 kB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/eagle.octaflat.low_quality.glb&demo=true&config.material.doubleSide=true" data-video-src="thumbnails/eagle.octaflat.mp4" aria-label="Open Octaviewer on eagle.octaflat">
+        <img src="thumbnails/eagle.octaflat.jpg" alt="eagle.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">1.9 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/lucy.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/lucy.octaflat.mp4" aria-label="Open Octaviewer on lucy.octaflat">
+        <img src="thumbnails/lucy.octaflat.jpg" alt="lucy.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">1.0 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/kneeling.octaflat.low_quality.glb&demo=true&config.material.doubleSide=true" data-video-src="thumbnails/kneeling.octaflat.mp4" aria-label="Open Octaviewer on kneeling.octaflat">
+        <img src="thumbnails/kneeling.octaflat.jpg" alt="kneeling.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">4.6 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/dragon_vrip.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/dragon_vrip.octaflat.mp4" aria-label="Open Octaviewer on dragon_vrip.octaflat">
+        <img src="thumbnails/dragon_vrip.octaflat.jpg" alt="dragon_vrip.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">347 kB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/guang.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/guang.octaflat.mp4" aria-label="Open Octaviewer on guang.octaflat">
+        <img src="thumbnails/guang.octaflat.jpg" alt="guang.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">6.0 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/womanchild.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/womanchild.octaflat.mp4" aria-label="Open Octaviewer on womanchild.octaflat">
+        <img src="thumbnails/womanchild.octaflat.jpg" alt="womanchild.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">2.2 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/armadillo.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/armadillo.octaflat.mp4" aria-label="Open Octaviewer on armadillo.octaflat">
+        <img src="thumbnails/armadillo.octaflat.jpg" alt="armadillo.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">258 kB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/fangyibase.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/fangyibase.octaflat.mp4" aria-label="Open Octaviewer on fangyibase.octaflat">
+        <img src="thumbnails/fangyibase.octaflat.jpg" alt="fangyibase.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">6.0 MB</span>
+      </button>
 </div>
+  </main>
 
+  <script>
+    const IS_IOS = (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
+    const app = {
+      firstPlayingVideo: null,
+      morphVideosEnabled: false,
+
+      init() {
+        this.galleryItems = document.querySelectorAll('.gallery-item');
+        this.morphCheckbox = document.getElementById('morphVideos');
+        this.openExternalLinksInNewTabs();
+        this.setupGallery();
+        this.setupMorphVideos();
+        this.preventDefaultTouchVideoBehaviorOnIos();
+      },
+
+      openExternalLinksInNewTabs() {
+        for (const link of document.querySelectorAll('a[href^="http"]')) {
+          if (!link.hasAttribute('target')) {
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+          }
+        }
+      },
+
+      setupGallery() {
+        for (const item of this.galleryItems) {
+          const { url } = item.dataset;
+          if (url) {
+            item.addEventListener('click', (e) => {
+              if (IS_IOS && e.target.tagName === 'VIDEO') {
+                // Prevent video from opening full screen on iOS when clicked.
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+              }
+              window.open(url, '_blank');
+              return true;
+            });
+          }
+
+          const video = document.createElement('video');
+          Object.assign(video, {
+            src: item.dataset.videoSrc,
+            autoplay: false,
+            loop: true,
+            muted: true,
+            playsinline: true,
+            'webkit-playsinline': '',  // For IS_IOS.
+            tabIndex: -1,
+            hasBeenSynced: false,
+          });
+
+          video.addEventListener('playing', () => {
+            if (!this.morphVideosEnabled) {
+              video.pause();
+              return;
+            }
+
+            if (video.hasBeenSynced) return;
+            video.hasBeenSynced = true;
+            if (!this.firstPlayingVideo)
+              this.firstPlayingVideo = video;
+            else
+              video.currentTime = this.firstPlayingVideo.currentTime;
+            item.classList.add('playing');
+          });
+
+          video.addEventListener('pause', () => {
+            item.classList.remove('playing');
+          });
+
+          item.appendChild(video);
+        }
+      },
+
+      setupMorphVideos() {
+        const initialState = this.getInitialMorphVideoState();
+        this.morphCheckbox.checked = initialState;
+        this.morphVideosEnabled = initialState;
+        this.morphCheckbox.addEventListener('change', (e) => {
+          this.updateVideos(e.target.checked);
+        });
+        if (initialState)
+          this.updateVideos(true);
+      },
+
+      getInitialMorphVideoState() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('sphereMorph') === 'true';
+      },
+
+      updateVideos(enabled) {
+        this.morphVideosEnabled = enabled;
+
+        for (const item of this.galleryItems) {
+          const video = item.querySelector('video');
+          if (!video) return;
+
+          if (enabled) {
+            video.play().catch(() => {
+              // Ignore play errors.
+            });
+          } else {
+            video.pause();
+            video.currentTime = 0;
+            item.classList.remove('playing');
+            video.hasBeenSynced = false;
+          }
+        }
+
+        if (!enabled)
+          this.firstPlayingVideo = null;
+      },
+
+      preventDefaultTouchVideoBehaviorOnIos() {
+        if (!IS_IOS) return;
+        document.addEventListener('touchstart', (e) => {
+          if (e.target.tagName === 'VIDEO') e.preventDefault();
+        }, { passive: false });
+      },
+    };
+
+    document.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
 </body>
 </html>
