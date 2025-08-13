@@ -1031,7 +1031,7 @@
         });
         document.addEventListener('touchmove', (event) => {
           if (this.sliderActive) {
-            event.preventDefault();
+            event.preventDefault?.();
             this.dragSlider(event.touches[0]);
           }
         });
@@ -1084,7 +1084,7 @@
 
       dragSlider(event) {
         if (!this.sliderActive) return;
-        event.preventDefault();  // Prevent default drag behavior and text selection if mouse leaves slider.
+        event.preventDefault?.();  // Prevent default drag behavior and text selection if mouse leaves slider.
         this.stopDemoIfOngoing();
         const { sliderTrackHeight, sliderTrackTop } = this.getSliderDimensions();
         const value0 = (event.clientY - sliderTrackTop) / sliderTrackHeight;
