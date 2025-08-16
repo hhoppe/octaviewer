@@ -15,6 +15,44 @@
       https://jshint.com/
       Too old: https://www.jslint.com/  (requires braces after "if"; no trailing commas, etc).
     -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-D9JBHHFXDS"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-D9JBHHFXDS');
+    const analytics = {
+      trackModelView(modelName, urlParams) {
+        gtag('event', 'model_view', {
+          'model_name': modelName,
+          'url_params': urlParams,
+          'event_category': 'navigation',
+        });
+      },
+      trackFeatureUse(modelName, featureName, interactionType) {
+        gtag('event', 'feature_use', {
+          'model_name': modelName,
+          'feature_name': featureName,
+          'event_category': interactionType === 'click' ? 'ui_interaction' : 'keyboard_interaction',
+        });
+      },
+      trackLoadTime(modelName, loadTime) {
+        gtag('event', 'model_load_time', {
+          'model_name': modelName,
+          'load_time': Math.round(loadTime * 1000) / 1000,
+          'event_category': 'performance',
+        });
+      },
+      trackError(modelName, errorType) {
+        gtag('event', 'error', {
+          'model_name': modelName || 'unknown',
+          'error_type': errorType,
+          'event_category': 'errors',
+        });
+      },
+    };
+    window.analytics = analytics;
+  </script>
   <style>
     :root {
       --font-monospace: "Courier New", Courier, monospace;
@@ -868,6 +906,8 @@
           console.error('Error caught:', event.error);
           this.infoSummary.textContent = 'Error: ' + event.error.message;
           this.infoSummary.style.color = 'red';
+          const errorMessage = `${event.error.name}: ${event.error.message}`;
+          window.analytics?.trackError(this.modelName, errorMessage.slice(0, 100));
           this.requestRender();
         });
 
@@ -923,6 +963,8 @@
         this.modelFile = this.transformFileHostUrl(this.modelFile);
         this.modelName = this.modelFile.split('/').pop();
         document.title = `${this.modelName} - Octaviewer`;
+
+        window.analytics?.trackModelView(this.modelName, searchParams.toString());
 
         this.automationMode = this.paramIsTrue(searchParams.get('automate'));
         window.frameCount = parseInt(searchParams.get('frames') || '60', 10);
@@ -1169,6 +1211,7 @@
               button.classList.toggle('active', config.active);
 
             button.addEventListener('click', () => {
+              window.analytics?.trackFeatureUse(this.modelName, id, 'click');
               this.pressButton(config, !config.okInDemo);
             });
 
@@ -1181,6 +1224,7 @@
               const noModifiers = !event.ctrlKey && !event.altKey && !event.metaKey;
               if (event.key === config.key && noModifiers && !config.button?.disabled) {
                 event.preventDefault();
+                window.analytics?.trackFeatureUse(this.modelName, id, 'key');
                 this.pressButton(config, !config.okInDemo);
               }
             });
@@ -1746,6 +1790,7 @@
       },
 
       loadModel() {
+        this.loadStartTime = performance.now() / 1000;
         const loader = new GLTFLoader();
 
         const dracoLoader = new DRACOLoader();
@@ -1793,6 +1838,8 @@
           if (node.userData?.octaInfo) this.octaInfo = node.userData.octaInfo;
         });
         if (!this.mesh) throw Error('No mesh found in the model');
+
+        window.analytics?.trackLoadTime(this.modelName, performance.now() / 1000 - this.loadStartTime);
 
         if (this.octaInfo?.cameraFrame)
           this.cameraData = this.parseCameraString(this.octaInfo.cameraFrame);

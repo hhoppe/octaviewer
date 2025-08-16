@@ -6,6 +6,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Interactive gallery of 3D models created using topology simplification, spherical parameterization, appearance-preserving simplification, and progressive meshes. View and explore high-quality 3D meshes with seamless texturing.">
   <title>Spherically parameterized progressive meshes</title>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-D9JBHHFXDS"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-D9JBHHFXDS');
+    const analytics = {
+      trackModelOpen(modelName) {
+        gtag('event', 'model_open', {
+          'model_name': modelName,
+          'event_category': 'gallery_interaction',
+        });
+      },
+      trackUrlParams(params) {
+        gtag('event', 'url_params_used', {
+          'params': params.toString(),
+          'event_category': 'navigation',
+        });
+      },
+    };
+    window.analytics = analytics;
+  </script>
   <link rel="preload" as="image" href="images/nefertiti_atlas_rgb.jpg">
   <link rel="preload" as="image" href="images/nefertiti_octaflat_rgb.jpg">
   <style>
@@ -397,6 +419,12 @@
                 e.preventDefault();
                 e.stopPropagation();
                 return false;
+              }
+              if (1) {
+                const urlObj = new URL(url, window.location.origin);
+                const modelName = urlObj.searchParams.get('model')?.split('/').pop()?.replace('.glb', '') || 'unknown';
+                window.analytics?.trackModelOpen(modelName);
+                window.analytics?.trackUrlParams(urlObj.searchParams.toString());
               }
               window.open(url, '_blank');
               return true;
