@@ -701,6 +701,7 @@
             darkGray: 'rgb(15, 15, 15)',
           },
           visualizeInterpolatedVertexNormal: false,
+          visualizeNormalMapValues: false,
         },
         lighting: {
           ambientLightIntensity: {
@@ -2324,6 +2325,17 @@
             newMaterial = new THREE.MeshNormalMaterial();  // (It has no equivalent in glTF.)
           else
             console.warn('No vertex normals available for visualizeInterpolatedVertexNormal');
+        }
+
+        if (this.CONFIG.rendering.visualizeNormalMapValues && this.buttonConfig.normal.active) {
+          // Clone the normal map and set it to sRGB color space for proper color visualization.
+          const srgbNormalMap = newMaterial.normalMap.clone();
+          srgbNormalMap.colorSpace = THREE.SRGBColorSpace;
+          srgbNormalMap.needsUpdate = true;
+          newMaterial = new THREE.MeshBasicMaterial({
+            map: srgbNormalMap,
+            side: newMaterial.side,
+          });
         }
 
         this.mesh.material = newMaterial;
