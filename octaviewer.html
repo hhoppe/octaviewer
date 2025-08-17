@@ -1043,7 +1043,8 @@
         this.renderer.setPixelRatio(window.devicePixelRatio);
         if (this.lineEdges)
           this.lineEdges.material.resolution.set(window.innerWidth, window.innerHeight);
-        this.updateMorphConnector();
+        this.updateButtons();
+        this.updateSliderUi();
         this.requestRender();
       },
 
