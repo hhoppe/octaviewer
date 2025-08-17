@@ -265,22 +265,30 @@
         We aim to render detailed 3D models (e.g., scan reconstructions) in a web browser from compact files.<br/>
         The approach is to minimize mesh complexity by transferring normals and color attributes to textures,<br/>
         and to use a spherical parameterization for improved continuity, level-of-detail, and compression.<br/>
-        The collection of 3D models below is created using:
+        Processing the models builds on several earlier techniques:
       </p>
       <ul>
         <li><b>Min-cycle topology simplification</b> to pinch handles and tunnels
-          [<a href="https://github.com/hhoppe/Mesh-processing-library/blob/main/MinCycles/MinCycles.cpp">Unpublished 2014</a>]
+          [&sect;6.2 in <a href="https://hhoppe.com/proj/fvv/">Collet et al. 2015</a>]
         <li><b>Spherical parameterization</b> to remap onto a flat octahedron
           [<a href="https://hhoppe.com/proj/sphereparam/">Praun and Hoppe 2003</a>]
         <li><b>Stretch minimization</b> to prevent undersampling at extremities
-          [<a href="https://hhoppe.com/proj/tmpm/">Sander et al 2001</a>]
+          [<a href="https://hhoppe.com/proj/tmpm/">Sander et al. 2001</a>]
         <li><b>Appearance-preserving simplification</b> to minimize visual errors
-          [<a href="https://dl.acm.org/doi/10.1145/280814.280832">Cohen et al 1998</a>]
+          [<a href="https://dl.acm.org/doi/10.1145/280814.280832">Cohen et al. 1998</a>]
         <li><b>Progressive meshes</b> to create smooth level-of-detail geomorphs
           [<a href="https://hhoppe.com/proj/pm/">Hoppe 1996</a>]
-        <li><b>glTF compression</b> (with Draco and AVIF) for a highly compact format
+        <li><b>Mesh compression</b> using the Draco implementation of Edgebreaker
           [<a href="https://ieeexplore.ieee.org/abstract/document/764870">Rossignac 2002</a>]
+        <li><b>Texture compression</b> using
+          <a href="https://en.wikipedia.org/wiki/AVIF">AVIF</a> for all surface attributes (albedo, normals, etc.)
       </ul>
+      <p>
+        See the <a href="https://hhoppe.com/proj/octaflat/"><b>project page</b></a> for more info.
+      </p>
+      <p>
+        A single-chart map enables a compact glTF file, seamless rendering, and runtime LOD:
+      </p>
 
       <div class="comparison-container">
         <figure class="comparison-item">
@@ -304,7 +312,6 @@
 
       <p>
         Select a thumbnail to open an interactive 3D viewer in a new tab.
-        See the <a href="https://hhoppe.com/proj/octaflat/">project page</a> for more info.
       </p>
     </div>
   </header>
