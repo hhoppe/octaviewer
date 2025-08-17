@@ -8,25 +8,27 @@
   <title>Spherically parameterized progressive meshes</title>
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-D9JBHHFXDS"></script>
   <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
+    window.dataLayer ||= [];
+    function gtag(...args) { window.dataLayer.push(args); }
     gtag('js', new Date());
     gtag('config', 'G-D9JBHHFXDS');
+    /* eslint-disable camelcase */
     const analytics = {
       trackModelOpen(modelName) {
         gtag('event', 'model_open', {
-          'model_name': modelName,
-          'event_category': 'gallery_interaction',
+          model_name: modelName,
+          event_category: 'gallery_interaction',
         });
       },
       trackUrlParams(params) {
         gtag('event', 'url_params_used', {
-          'params': params.toString(),
-          'event_category': 'navigation',
+          params: params.toString(),
+          event_category: 'navigation',
         });
       },
     };
     window.analytics = analytics;
+    /* eslint-enable camelcase */
   </script>
   <link rel="preload" as="image" href="images/nefertiti_atlas_rgb.jpg">
   <link rel="preload" as="image" href="images/nefertiti_octaflat_rgb.jpg">

@@ -17,41 +17,43 @@
     -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-D9JBHHFXDS"></script>
   <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
+    window.dataLayer ||= [];
+    function gtag(...args) { window.dataLayer.push(args); }
     gtag('js', new Date());
     gtag('config', 'G-D9JBHHFXDS');
+    /* eslint-disable camelcase */
     const analytics = {
       trackModelView(modelName, urlParams) {
         gtag('event', 'model_view', {
-          'model_name': modelName,
-          'url_params': urlParams,
-          'event_category': 'navigation',
+          model_name: modelName,
+          url_params: urlParams,
+          event_category: 'navigation',
         });
       },
       trackFeatureUse(modelName, featureName, interactionType) {
         gtag('event', 'feature_use', {
-          'model_name': modelName,
-          'feature_name': featureName,
-          'event_category': interactionType === 'click' ? 'ui_interaction' : 'keyboard_interaction',
+          model_name: modelName,
+          feature_name: featureName,
+          event_category: interactionType === 'click' ? 'ui_interaction' : 'keyboard_interaction',
         });
       },
       trackLoadTime(modelName, loadTime) {
         gtag('event', 'model_load_time', {
-          'model_name': modelName,
-          'load_time': Math.round(loadTime * 1000) / 1000,
-          'event_category': 'performance',
+          model_name: modelName,
+          load_time: Math.round(loadTime * 1000) / 1000,
+          event_category: 'performance',
         });
       },
       trackError(modelName, errorType) {
         gtag('event', 'error', {
-          'model_name': modelName || 'unknown',
-          'error_type': errorType,
-          'event_category': 'errors',
+          model_name: modelName || 'unknown',
+          error_type: errorType,
+          event_category: 'errors',
         });
       },
     };
     window.analytics = analytics;
+    /* eslint-enable camelcase */
   </script>
   <style>
     :root {
