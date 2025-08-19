@@ -579,7 +579,7 @@
     <line class="connector-line" id="connector-line" x1="0" y1="0" x2="0" y2="0" />
   </svg>
   <div id="demo-notification">
-    <div>Demo Mode Active</div>
+    <div>Demo mode</div>
     <div style="font-size: 14px; margin-top: 8px; opacity: 0.9;">
       Automatically cycling through visualization modes
     </div>
@@ -2567,7 +2567,7 @@
         if (this.octaInfo) {
           infoEntries.push('');
           for (const [keyword, value] of Object.entries(this.octaInfo)) {
-            if (['cameraFrame', 'geomorphNfaces'].includes(keyword)) continue;
+            if (['cameraFrame', 'geomorphsMinNumFaces', 'geomorphNfaces'].includes(keyword)) continue;
             if (keyword === 'processLog') infoEntries.push('');
             const formattedKeyword = keyword
               .replace(/([A-Z])/g, ' $1')  // Add space before capital letters.
@@ -3049,8 +3049,10 @@
           let fineGeometry = this.originalGeometry;
           const { simplificationFactor, defaultMinVertexCount, overrideMinVertexCount } = this.CONFIG.morph;
           let minVertexCount = defaultMinVertexCount;
-          if (this.octaInfo?.geomorphNfaces)
+          if (this.octaInfo?.geomorphNfaces)  // (Deprecated.)
             minVertexCount = Math.floor(Number(this.octaInfo.geomorphNfaces.split(/\s+/)[0]) / 2);
+          if (this.octaInfo?.geomorphsMinNumFaces)
+            minVertexCount = Math.floor(Number(this.octaInfo.geomorphsMinNumFaces) / 2);
           if (overrideMinVertexCount)
             minVertexCount = overrideMinVertexCount;
           while (1) {
