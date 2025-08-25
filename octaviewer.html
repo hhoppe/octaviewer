@@ -6,6 +6,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Octaviewer</title>
+  <!--link rel="icon" type="image/svg+xml" href="favicon.svg"-->
+  <!--link rel="icon" type="image/png" href="favicon.png"-->
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
   <!--
       W3 validation: https://validator.w3.org/nu/?doc=https://hhoppe.github.io/octaviewer/index.html
       HTML5 validation: https://html5.validator.nu/?doc=https://hhoppe.github.io/octaviewer/index.html
@@ -52,8 +55,8 @@
         });
       },
     };
-    window.analytics = analytics;
     /* eslint-enable camelcase */
+    if (0) window.analytics = analytics;  // Event tracking is disabled.
   </script>
   <style>
     :root {
@@ -806,10 +809,14 @@
             { keys: 'nt', pause: 2.5 },    // Normal on, texture panel on.
             { keys: 'au', pause: 2.0 },    // Albedo on, uvgrid on.
             { keys: 'o' },                 // Start octahedron morph fine-to-coarse.
-            { keys: '', pause: 2.0 },      // Pause at coarse mesh.
+            { keys: '', pause: 0.5 },      // Pause at coarse mesh.
+            { keys: '', yawDuration: 2.0, yawAngle: 0.4 * TAU },  // Rotate coarse mesh.
+            { keys: '', pause: 0.5 },      // Pause at coarse mesh.
             { keys: 'u', pause: 2.0 },     // Uvgrid off.
             { keys: '' },                  // Continue octahedron morph coarse-to-fine.
-            { keys: '', pause: 2.0 },      // Pause at fine mesh.
+            { keys: '', pause: 0.5 },      // Pause at fine mesh.
+            { keys: '', yawDuration: 2.0, yawAngle: -0.4 * TAU },  // Rotate fine mesh.
+            { keys: '', pause: 0.5 },      // Pause at fine mesh.
             { keys: 'o' },                 // Stop octahedron morph.
             { keys: 't', pause: 1.0 },     // Texture panel off.
           ],
@@ -850,6 +857,8 @@
                   onClick() { this.updateInfoDetails(); } },
           help: { key: '?', svg: SVG_HELP, active: false, desc: 'Toggle the help window', okInDemo: true,
                   onClick() { this.updateHelpWindow(); } },
+          helpAlias: { key: 'h', desc: 'Toggle the help window', okInDemo: true,
+                       onClick() { this.pressButton(this.buttonConfig.help); } },
           fullscreen: { key: 'f', svg: SVG_FULLSCREEN, active: false, desc: 'Toggle fullscreen mode', okInDemo: true,
                         onClick() { this.toggleFullscreen(); } },
           reset: { key: 'z', svg: SVG_RESET, desc: 'Reset the camera view', okInDemo: true,
@@ -886,7 +895,8 @@
       lineTopologyCache: {},  // Keyed by mesh vertex count.
       thumbnailCanvasOfTextureKey: {},
       demoIndex: 0,
-      demoPauseStartTime: null,
+      demoPauseDuration: null,
+      demoYawDuration: null,
       renderCount: 0,
 
       init() {
@@ -2194,10 +2204,12 @@
         material.polygonOffsetUnits = 1;  // Positive value pushes polygon away (for front-facing poly).
         material.polygonOffsetFactor = 1;  // Positive value pushes oblique polygons farther away.
 
-        // Override the parameter value "DoubleSide" which was set in octa_to_gltf.py
-        // Often, we prefer FrontSide to avoid the rendering artifacts (foldovers, interpenetration) during morphs.
-        if (!this.CONFIG.material.doubleSide)
-          material.side = THREE.FrontSide;
+        // The value of `material.side` was assigned in octa_to_gltf.py.
+        // Usually, we assign FrontSide to avoid rendering artifacts (foldovers, interpenetration) during morphs,
+        // but on some models, we assign DoubleSide due to the presence of large surface boundaries.
+        // We optionally override it here.
+        if (this.CONFIG.material.doubleSide)
+          material.side = THREE.DoubleSide;
 
         this.initializeTexture(material.map, 'Albedo');
         this.initializeTexture(material.normalMap, 'Normal');
@@ -2530,9 +2542,9 @@
         const shortModelName = this.modelName.replace('.octaflat', '').replace('.glb', '');
         let text = `${shortModelName}`;
         if (this.morphState === 'geomorphs' && (this.buttonConfig.geomorphs.active || this.sliderValue < 1.0))
-          text += ` (${formatNum(totalSize)}B) (morph ${formatNum(faceCount)} triangles)`;
+          text += ` (${formatNum(totalSize)}B) (morph ${formatNum(faceCount).trim()} triangles)`;
         else
-          text += ` (${formatNum(totalSize)}B; ${formatNum(faceCount)} triangles)`;
+          text += ` (${formatNum(totalSize)}B; ${formatNum(faceCount).trim()} triangles)`;
         this.infoSummary.textContent = text;
 
         const box = this.bbox;
@@ -2688,7 +2700,7 @@
           }
         } else {
           // Interpolate between original and morph target positions.
-          const [meshTargetPositions] = this.wireframeMesh.geometry.morphAttributes.position;
+          const [meshTargetPositions] = this.mesh.geometry.morphAttributes.position;
           for (const [edgeVertexIndex, meshVertexIndex] of this.currentEdgeVertexIndices.entries()) {
             for (let coordIndex = 0; coordIndex < 3; coordIndex++) {
               edgePositions[edgeVertexIndex * 3 + coordIndex] =
@@ -2703,7 +2715,7 @@
 
       async preUploadLineEdgesAsync() {
         if (!this.mesh) return;
-        // Precompute and initialize the line edges (including GPU upload) to reduce pause when edges are enabled.
+        // Precompute and initialize the line edges (including GPU upload) to reduce delay when edges are enabled.
         await new Promise(resolve => {
           requestAnimationFrame(() => {
             if (!this.lineEdges) this.createLineEdges();
@@ -2737,7 +2749,8 @@
 
         if (this.buttonConfig.demo.active) {
           this.demoIndex = 0;
-          this.demoPauseStartTime = null;
+          this.demoPauseDuration = null;
+          this.demoYawDuration = null;
           this.preUploadLineEdgesAsync();
           this.showDemoNotification();
           this.processDemoStage();
@@ -2756,7 +2769,7 @@
       processDemoStage() {
         const { keySequences } = this.CONFIG.demo;
         const stageData = keySequences[this.demoIndex];
-        const { keys, pause = undefined } = stageData;
+        const { keys, pause, yawDuration, yawAngle } = stageData;
         if (0) console.log(`Demo stage ${this.demoIndex}: "${stageData}"`);
 
         // Press all buttons for this stage.
@@ -2767,12 +2780,12 @@
         }
 
         // Set up pause if specified.
-        if (pause !== undefined) {
-          this.demoPauseStartTime = Date.now() / 1000;
-          this.demoPauseDuration = pause;
-        } else {
-          this.demoPauseStartTime = null;
-        }
+        this.demoPauseDuration = pause;
+        this.demoPauseTime = 0.0;
+
+        this.demoYawDuration = yawDuration;
+        this.demoYawAngle = yawAngle;
+        this.demoYawTime = 0.0;
 
         // Advance to next stage.
         this.demoIndex += 1;
@@ -3288,10 +3301,22 @@
             const rockingPhaseDelta = (TAU / rockingPeriod) * deltaTime;
             this.applyRockingRotation(rockingPhaseDelta);
           }
-          if (this.buttonConfig.demo.active && this.demoPauseStartTime !== null) {
-            const elapsedPauseTime = Date.now() / 1000 - this.demoPauseStartTime;
-            if (elapsedPauseTime >= this.demoPauseDuration) {
-              this.demoPauseStartTime = null;  // End the pause.
+          if (this.buttonConfig.demo.active && this.demoPauseDuration) {
+            this.demoPauseTime += deltaTime;
+            if (this.demoPauseTime >= this.demoPauseDuration) {
+              this.demoPauseDuration = null;  // End the pause.
+              this.processDemoStage();
+            }
+          } else if (this.buttonConfig.demo.active && this.demoYawDuration) {
+            const f = (time) => this.smoothStep(time / this.demoYawDuration) * this.demoYawAngle;
+            const yawAnglePrev = f(this.demoYawTime);
+            const yawAngleCurr = f(Math.min(this.demoYawTime + deltaTime, this.demoYawDuration));
+            const yawDeltaAngle = yawAngleCurr - yawAnglePrev;
+            const rotationMatrix = new THREE.Matrix4().makeRotationY(yawDeltaAngle);
+            this.camera.position.applyMatrix4(rotationMatrix);
+            this.demoYawTime += deltaTime;
+            if (this.demoYawTime >= this.demoYawDuration) {
+              this.demoYawDuration = null;  // End the yaw.
               this.processDemoStage();
             }
           } else if (this.morphDuration) {
@@ -3342,12 +3367,12 @@
         const shouldContinueRendering =
           controlsChanged || timeSinceLastInteraction < thresholdSeconds ||
           this.buttonConfig.lumicycle.active || this.buttonConfig.rocking.active || this.morphDuration ||
-          this.demoPauseStartTime || this.automationInProgress;
+          this.demoPauseDuration || this.demoYawDuration || this.automationInProgress;
 
         if (shouldContinueRendering)
           requestAnimationFrame(() => this.renderLoop());
         else
-          this.needsRender = false;  // We can pause.
+          this.needsRender = false;  // We can stop rendering.
       },
     };
 

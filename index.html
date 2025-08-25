@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Interactive gallery of 3D models created using topology simplification, spherical parameterization, appearance-preserving simplification, and progressive meshes. View and explore high-quality 3D meshes with seamless texturing.">
   <title>Octaviewer</title>
+  <!--link rel="icon" type="image/svg+xml" href="favicon.svg"-->
+  <!--link rel="icon" type="image/png" href="favicon.png"-->
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-D9JBHHFXDS"></script>
   <script>
     window.dataLayer ||= [];
@@ -27,8 +30,8 @@
         });
       },
     };
-    window.analytics = analytics;
     /* eslint-enable camelcase */
+    if (0) window.analytics = analytics;  // Event tracking is disabled.
   </script>
   <link rel="preload" as="image" href="images/nefertiti_atlas_rgb.jpg">
   <link rel="preload" as="image" href="images/nefertiti_octaflat_rgb.jpg">
@@ -357,6 +360,14 @@
         <img src="thumbnails/hydria.octaflat.jpg" alt="hydria.octaflat 3D model" loading="lazy"/>
         <span class="size-overlay">804 kB</span>
       </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/washington_toga.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/washington_toga.octaflat.mp4" aria-label="Open Octaviewer on washington_toga.octaflat">
+        <img src="thumbnails/washington_toga.octaflat.jpg" alt="washington_toga.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">1.4 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/thai_statue.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/thai_statue.octaflat.mp4" aria-label="Open Octaviewer on thai_statue.octaflat">
+        <img src="thumbnails/thai_statue.octaflat.jpg" alt="thai_statue.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">3.9 MB</span>
+      </button>
 <button class="gallery-item" data-url="octaviewer.html?model=data/eagle.octaflat.low_quality.glb&demo=true&config.material.doubleSide=true" data-video-src="thumbnails/eagle.octaflat.mp4" aria-label="Open Octaviewer on eagle.octaflat">
         <img src="thumbnails/eagle.octaflat.jpg" alt="eagle.octaflat 3D model" loading="lazy"/>
         <span class="size-overlay">1.9 MB</span>
@@ -369,25 +380,37 @@
         <img src="thumbnails/kneeling.octaflat.jpg" alt="kneeling.octaflat 3D model" loading="lazy"/>
         <span class="size-overlay">4.6 MB</span>
       </button>
-<button class="gallery-item" data-url="octaviewer.html?model=data/dragon_vrip.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/dragon_vrip.octaflat.mp4" aria-label="Open Octaviewer on dragon_vrip.octaflat">
-        <img src="thumbnails/dragon_vrip.octaflat.jpg" alt="dragon_vrip.octaflat 3D model" loading="lazy"/>
-        <span class="size-overlay">347 kB</span>
-      </button>
 <button class="gallery-item" data-url="octaviewer.html?model=data/guang.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/guang.octaflat.mp4" aria-label="Open Octaviewer on guang.octaflat">
         <img src="thumbnails/guang.octaflat.jpg" alt="guang.octaflat 3D model" loading="lazy"/>
         <span class="size-overlay">6.0 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/dragon_vrip.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/dragon_vrip.octaflat.mp4" aria-label="Open Octaviewer on dragon_vrip.octaflat">
+        <img src="thumbnails/dragon_vrip.octaflat.jpg" alt="dragon_vrip.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">347 kB</span>
       </button>
 <button class="gallery-item" data-url="octaviewer.html?model=data/womanchild.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/womanchild.octaflat.mp4" aria-label="Open Octaviewer on womanchild.octaflat">
         <img src="thumbnails/womanchild.octaflat.jpg" alt="womanchild.octaflat 3D model" loading="lazy"/>
         <span class="size-overlay">2.2 MB</span>
       </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/hayes.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/hayes.octaflat.mp4" aria-label="Open Octaviewer on hayes.octaflat">
+        <img src="thumbnails/hayes.octaflat.jpg" alt="hayes.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">1.7 MB</span>
+      </button>
 <button class="gallery-item" data-url="octaviewer.html?model=data/armadillo.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/armadillo.octaflat.mp4" aria-label="Open Octaviewer on armadillo.octaflat">
         <img src="thumbnails/armadillo.octaflat.jpg" alt="armadillo.octaflat 3D model" loading="lazy"/>
-        <span class="size-overlay">258 kB</span>
+        <span class="size-overlay">257 kB</span>
       </button>
 <button class="gallery-item" data-url="octaviewer.html?model=data/fangyibase.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/fangyibase.octaflat.mp4" aria-label="Open Octaviewer on fangyibase.octaflat">
         <img src="thumbnails/fangyibase.octaflat.jpg" alt="fangyibase.octaflat 3D model" loading="lazy"/>
         <span class="size-overlay">6.0 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/washington_houdon.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/washington_houdon.octaflat.mp4" aria-label="Open Octaviewer on washington_houdon.octaflat">
+        <img src="thumbnails/washington_houdon.octaflat.jpg" alt="washington_houdon.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">1.4 MB</span>
+      </button>
+<button class="gallery-item" data-url="octaviewer.html?model=data/cow.octaflat.low_quality.glb&demo=true" data-video-src="thumbnails/cow.octaflat.mp4" aria-label="Open Octaviewer on cow.octaflat">
+        <img src="thumbnails/cow.octaflat.jpg" alt="cow.octaflat 3D model" loading="lazy"/>
+        <span class="size-overlay">51 kB</span>
       </button>
 </div>
   </main>
@@ -429,7 +452,7 @@
                 e.stopPropagation();
                 return false;
               }
-              if (1) {
+              if (window.analytics) {
                 const urlObj = new URL(url, window.location.origin);
                 const modelName = urlObj.searchParams.get('model')?.split('/').pop()?.replace('.glb', '') || 'unknown';
                 window.analytics?.trackModelOpen(modelName);

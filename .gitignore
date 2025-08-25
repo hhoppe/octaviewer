@@ -7,6 +7,7 @@ data/*.high_quality.glb
 
 .npmrc
 create_index.py
+create_table.py
 create_thumbnail.js
 eslint.config.js
 index_template.html
