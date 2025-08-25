@@ -15,11 +15,20 @@
     function gtag() { window.dataLayer.push(arguments); }  // eslint-disable-line prefer-rest-params
     gtag('js', new Date());
     gtag('config', 'G-D9JBHHFXDS');
+    window.addEventListener('load', function() {
+      gtag('event', 'page_view', {
+        page_title: 'Octaviewer Gallery',
+        page_location: window.location.href,
+        content_group1: 'gallery',
+      });
+    });
     /* eslint-disable camelcase */
     const analytics = {
       trackModelOpen(modelName) {
-        gtag('event', 'model_open', {
-          model_name: modelName,
+        const cleanModelName = modelName.replace(/\.(octaflat|glb)$/, '').replace(/\.low_quality$/, '');
+        gtag('event', 'model_link_click', {
+          model_name: cleanModelName,
+          model_type: modelName.includes('low_quality') ? 'low_quality' : 'high_quality',
           event_category: 'gallery_interaction',
         });
       },

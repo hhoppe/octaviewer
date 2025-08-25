@@ -27,15 +27,21 @@
     /* eslint-disable camelcase */
     const analytics = {
       trackModelView(modelName, urlParams) {
-        gtag('event', 'model_view', {
-          model_name: modelName,
-          url_params: urlParams,
-          event_category: 'navigation',
+        const cleanModelName = modelName.replace(/\.(octaflat|glb)$/, '').replace(/\.low_quality$/, '');
+        gtag('event', 'page_view', {
+          page_title: `${cleanModelName} - Octaviewer`,
+          page_location: window.location.href,
+          model_name: cleanModelName,
+          model_type: modelName.includes('low_quality') ? 'low_quality' : 'high_quality',
+          is_demo_mode: urlParams.includes('demo=true'),
+          // url_params: urlParams,
+          // event_category: 'navigation',
         });
       },
       trackFeatureUse(modelName, featureName, interactionType) {
+        const cleanModelName = modelName.replace(/\.(octaflat|glb)$/, '').replace(/\.low_quality$/, '');
         gtag('event', 'feature_use', {
-          model_name: modelName,
+          model_name: cleanModelName,
           feature_name: featureName,
           event_category: interactionType === 'click' ? 'ui_interaction' : 'keyboard_interaction',
         });
