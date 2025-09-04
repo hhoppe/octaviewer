@@ -1185,20 +1185,25 @@
         return this.easeInOutCubic(value);
       },
 
+      determineMorphParams() {
+        const getMorphParams = {
+          '': () => ({ index: 0, influence0: 1.0, geometry: null }),
+          geomorphs: this.determineGeomorph.bind(this),
+          sphere: this.determineSphereMorph.bind(this),
+          octahedron: this.determineOctahedronMorph.bind(this),
+        }[this.morphState];
+        return getMorphParams();
+      },
+
       getInfluence0() {
-        if (this.morphState === 'geomorphs')
-          return this.determineGeomorph().influence0;
-        if (this.morphState === 'octahedron')
-          return this.determineOctahedronMorph().influence0;
-        return this.smoothFunction(1.0 - this.sliderValue);
+        return this.determineMorphParams().influence0;
       },
 
       onSliderValueChange() {
         if (!this.mesh) return;
         this.updateEdges();
-        if (this.morphState === 'geomorphs') this.updateGeometry(this.selectGeomorphGeometry());
-        if (this.morphState === 'octahedron') this.updateGeometry(this.selectOctahedronGeometry());
-        const influence0 = this.getInfluence0();
+        const { influence0, geometry } = this.determineMorphParams();
+        if (geometry) this.updateGeometry(geometry);
         this.mesh.morphTargetInfluences[0] = influence0;
         if (this.buttonConfig.edges.active && this.wireframeMesh?.morphTargetInfluences)
           this.wireframeMesh.morphTargetInfluences[0] = influence0;
@@ -3059,7 +3064,7 @@
         this.setInfo();
       },
 
-      updateMorph(newMorphState, morphGeometry) {
+      updateMorph(newMorphState) {
         if (newMorphState !== this.morphState) {
           if (this.morphState) {
             this.setSliderValue(1.0);
@@ -3067,9 +3072,9 @@
           }
           this.morphState = newMorphState;
         }
-        this.updateGeometry(newMorphState === 'geomorphs' ? this.selectGeomorphGeometry() :
-                            newMorphState === 'octahedron' ? this.selectOctahedronGeometry() :
-                            morphGeometry);
+
+        const { geometry } = this.determineMorphParams();
+        this.updateGeometry(geometry);
 
         if (this.buttonConfig[newMorphState].active)
           this.activateMorph();
@@ -3107,7 +3112,7 @@
           if (this.CONFIG.debug) this.coarsestGeometry = fineGeometry;  // To inspect mesh in browser console.
         }
         if (this.geomorphs.length)
-          this.updateMorph('geomorphs', null);
+          this.updateMorph('geomorphs');
       },
 
       determineGeomorph() {
@@ -3115,17 +3120,14 @@
         const scaledValue = (1.0 - this.sliderValue) * numGeomorphs;
         const index = scaledValue === numGeomorphs ? numGeomorphs - 1 : Math.floor(scaledValue);
         const influence0 = scaledValue - index;
-        return { index, influence0 };
+        const geometry = this.geomorphs[index];
+        return { index, influence0, geometry };
       },
 
-      selectGeomorphGeometry() {
-        return this.geomorphs[this.determineGeomorph().index];
-      },
-
-      updateDomainMorph(newMorphState, mapFromUv) {
-        let geometry = this.morphGeometryCache[newMorphState];
+      getCachedDomainMorphGeometry(morphState, mapFromUv) {
+        let geometry = this.morphGeometryCache[morphState];
         if (!geometry) {
-          geometry = this.morphGeometryCache[newMorphState] = this.shallowCloneGeometry(this.originalGeometry);
+          geometry = this.morphGeometryCache[morphState] = this.shallowCloneGeometry(this.originalGeometry);
 
           const uvAttribute = geometry.attributes.uv;
           if (!uvAttribute) throw new Error('Mesh does not have UV coordinates');
@@ -3138,24 +3140,44 @@
           }
           geometry.morphAttributes.position = [new THREE.BufferAttribute(new Float32Array(domainPositions), 3)];
         }
-        this.updateMorph(newMorphState, geometry);
+        return geometry;
       },
 
       updateSphere() {
-        this.updateDomainMorph('sphere', this.sphereMapFromUv.bind(this));
+        this.updateMorph('sphere');
+      },
+
+      determineSphereMorph() {
+        const index = 0;
+        const influence0 = this.smoothFunction(1.0 - this.sliderValue);
+        const geometry = this.getCachedDomainMorphGeometry('sphere', this.sphereMapFromUv.bind(this));
+        return { index, influence0, geometry };
       },
 
       updateOctahedron() {
-        if (!this.octahedronSequence) {
-          // Create the unfolding octaflat-to-square morph sequence (stage 2).
-          this.octahedronSequence = this.createOctahedronUnfoldingSequence();
-          // Create the main surface-to-octaflat morph (stage 1).
-          this.updateDomainMorph('octahedron', this.octahedronMapFromUv.bind(this));
-        }
-        this.updateMorph('octahedron', null);
+        if (!this.octahedronSequence)
+          this.octahedronSequence = this.createOctahedronStage2UnfoldingSequence();
+        this.updateMorph('octahedron');
       },
 
-      createOctahedronUnfoldingSequence(steps=10) {
+      determineOctahedronMorph() {
+        if (this.sliderValue > 0.5) {
+          // Stage 1: surface to flat octahedron (single morph using complex mesh).
+          const influence0 = this.smoothFunction((1.0 - this.sliderValue) * 2.0);
+          const geometry = this.getCachedDomainMorphGeometry('octahedron', this.octahedronMapFromUv.bind(this));
+          return { index: 0, influence0, geometry, stage: 1 };
+        }
+        // Stage 2: octahedron unfolding (sequence of morphs using a simple 8-triangle mesh).
+        const sequenceProgress = this.smoothFunction((0.5 - this.sliderValue) * 2.0);
+        const numUnfoldingSteps = this.octahedronSequence.length;
+        const scaledValue = sequenceProgress * numUnfoldingSteps;
+        const index = scaledValue === numUnfoldingSteps ? numUnfoldingSteps - 1 : Math.floor(scaledValue);
+        const influence0 = scaledValue - index;
+        const geometry = this.octahedronSequence[index];
+        return { index, influence0, geometry, stage: 2, doubleSide: true };
+      },
+
+      createOctahedronStage2UnfoldingSequence(steps=10) {
         const unfoldingMorphs = [];
 
         for (let step = 0; step < steps; step++) {
@@ -3163,8 +3185,8 @@
 
           const geometry = new THREE.BufferGeometry();
 
-          const positions = this.computeUnfoldingPositions(progress);
-          const targetPositions = this.computeUnfoldingPositions(nextProgress);
+          const positions = this.computeOctahedronUnfoldingPositions(progress);
+          const targetPositions = this.computeOctahedronUnfoldingPositions(nextProgress);
           geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
           geometry.morphAttributes.position = [new THREE.BufferAttribute(targetPositions, 3)];
           geometry.userData.actualVertexCount = 9;
@@ -3193,7 +3215,7 @@
       },
 
       // Compute vertex positions for a given unfolding progress (0.0: octaflat, 1.0: square).
-      computeUnfoldingPositions(progress) {
+      computeOctahedronUnfoldingPositions(progress) {
         const positions = new Float32Array(27); // 9 vertices * 3 coords.
 
         for (let row = 0; row < 3; row++) {
@@ -3227,28 +3249,6 @@
         }
 
         return positions;
-      },
-
-      determineOctahedronMorph() {
-        if (this.sliderValue > 0.5) {
-          // Stage 1: surface to flat octahedron (single morph using complex mesh).
-          const influence0 = this.smoothFunction((1.0 - this.sliderValue) * 2.0);
-          return { stage: 1, index: 0, influence0 };
-        }
-        // Stage 2: octahedron unfolding (sequence of morphs using a simple 8-triangle mesh).
-        const sequenceProgress = this.smoothFunction((0.5 - this.sliderValue) * 2.0);
-        const numUnfoldingSteps = this.octahedronSequence.length;
-        const scaledValue = sequenceProgress * numUnfoldingSteps;
-        const index = scaledValue === numUnfoldingSteps ? numUnfoldingSteps - 1 : Math.floor(scaledValue);
-        const influence0 = scaledValue - index;
-        return { stage: 2, index, influence0 };
-      },
-
-      selectOctahedronGeometry() {
-        const morph = this.determineOctahedronMorph();
-        if (morph.stage === 1)
-          return this.morphGeometryCache.octahedron;
-        return this.octahedronSequence[morph.index];
       },
 
       computeMean(array) {
