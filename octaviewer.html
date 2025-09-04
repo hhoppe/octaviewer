@@ -1186,8 +1186,8 @@
       },
 
       determineMorphParams() {
+        if (!this.morphState) return { index: 0, influence0: 1.0, geometry: null };
         const getMorphParams = {
-          '': () => ({ index: 0, influence0: 1.0, geometry: null }),
           geomorphs: this.determineGeomorph.bind(this),
           sphere: this.determineSphereMorph.bind(this),
           octahedron: this.determineOctahedronMorph.bind(this),
@@ -1202,11 +1202,17 @@
       onSliderValueChange() {
         if (!this.mesh) return;
         this.updateEdges();
-        const { influence0, geometry } = this.determineMorphParams();
+        const { influence0, geometry, doubleSide } = this.determineMorphParams();
         if (geometry) this.updateGeometry(geometry);
         this.mesh.morphTargetInfluences[0] = influence0;
         if (this.buttonConfig.edges.active && this.wireframeMesh?.morphTargetInfluences)
           this.wireframeMesh.morphTargetInfluences[0] = influence0;
+        const { side: origSide } = this.mesh.userData.originalMaterial;
+        const { side: currSide } = this.mesh.material;
+        if (origSide === THREE.FrontSide) {
+          const desiredSide = doubleSide ? THREE.DoubleSide : THREE.FrontSide;
+          if (desiredSide !== currSide) this.updateMaterial();
+        }
       },
 
       createButtons() {
@@ -1927,6 +1933,7 @@
         this.updateMaterial();
         this.updateTexturesPanel();
         this.updateInfoDetails();
+        this.updateHelpWindow();
         this.setInfo();
 
         if (this.automationMode)
@@ -2408,6 +2415,9 @@
         if (newMaterial.normalMap && !this.buttonConfig.normal.active)
           newMaterial.normalMap = null;  // Revert back to vertex normals.
 
+        const { doubleSide } = this.determineMorphParams();
+        if (doubleSide) newMaterial.side = THREE.DoubleSide;
+
         {
           const shadingConfig = this.CONFIG.material.varnish[this.buttonConfig.varnish.active];
           // Like glTF baseColorFactor; default 1.0 .
@@ -2419,9 +2429,6 @@
         }
 
         if (newMaterial.map) newMaterial.color.setRGB(...this.CONFIG.material.albedoMapBaseColor);
-
-        if (this.morphState === 'octahedron')
-          newMaterial.side = THREE.DoubleSide;
 
         if (this.CONFIG.rendering.visualizeInterpolatedVertexNormal && this.buttonConfig.normal.active) {
           if (this.mesh.geometry.attributes.normal)
@@ -2720,7 +2727,7 @@
         const meshPositions = this.mesh.geometry.attributes.position;
         const edgePositions = new Float32Array(this.currentEdgeVertexIndices.length * 3);
 
-        if (influence0 < 1e-8) {
+        if (influence0 < 1e-8 || !this.mesh.geometry.morphAttributes?.position) {
           // No morph - use original positions.
           for (const [edgeVertexIndex, meshVertexIndex] of this.currentEdgeVertexIndices.entries()) {
             for (let coordIndex = 0; coordIndex < 3; coordIndex++) {
@@ -3081,7 +3088,7 @@
         else
           this.deactivateMorph(1.0);
 
-        this.updateMaterial();
+        this.onSliderValueChange();
         this.updateEdges();
         this.updateButtons();
       },
