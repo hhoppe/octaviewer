@@ -33,8 +33,6 @@
           model_name: cleanModelName,
           model_type: modelName.includes('low_quality') ? 'low_quality' : 'high_quality',
           is_demo_mode: urlParams.includes('demo=true'),
-          // url_params: urlParams,
-          // event_category: 'navigation',
         });
       },
       trackFeatureUse(modelName, featureName, interactionType) {
@@ -1534,15 +1532,34 @@
         // Create a unique key for the texture - combine the map UUID and the image dimensions.
         const cacheKey = `${map.uuid}_${canvas.width}x${canvas.height}`;
 
-        let cachedCanvas = this.thumbnailCanvasOfTextureKey[cacheKey];
-        if (cachedCanvas) {
-          this.drawCanvasToCanvas(cachedCanvas, canvas);
-        } else {
-          cachedCanvas = this.createElement('canvas', { width: canvas.width, height: canvas.height });
+        if (this.thumbnailCanvasOfTextureKey[cacheKey]) {  // Use the cached thumbnail.
+          this.drawCanvasToCanvas(this.thumbnailCanvasOfTextureKey[cacheKey], canvas);
+
+        } else if (1) {  // Synchronously generate the thumbnail.
+          const cachedCanvas = this.createElement('canvas', { width: canvas.width, height: canvas.height });
           this.generateThumbnail(map, cachedCanvas, mapType).then(() => {
             this.thumbnailCanvasOfTextureKey[cacheKey] = cachedCanvas;
             this.drawCanvasToCanvas(cachedCanvas, canvas);
           });
+
+        } else {  // Show a placeholder and generate the thumbnail asynchronously.
+          const context = canvas.getContext('2d');
+          context.fillStyle = '#333';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.fillStyle = '#666';
+          context.font = `${Math.min(canvas.width, canvas.height) / 8}px Arial`;
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
+          context.fillText('Loading...', canvas.width / 2, canvas.height / 2);
+
+          // Defer the actual work to avoid blocking.
+          setTimeout(() => {
+            const cachedCanvas = this.createElement('canvas', { width: canvas.width, height: canvas.height });
+            this.generateThumbnail(map, cachedCanvas, mapType).then(() => {
+              this.thumbnailCanvasOfTextureKey[cacheKey] = cachedCanvas;
+              this.drawCanvasToCanvas(cachedCanvas, canvas);
+            });
+          }, 100); // Small delay to let the UI settle.
         }
 
         canvas.addEventListener('click', () => { this.openImageInNewTab(map, mapType); });
@@ -1787,7 +1804,7 @@
             <${''}script src='https://cdn.jsdelivr.net/npm/viewerjs@1.11.7/dist/viewer.min.js'><${''}/script>
 
             <${''}script>
-              window.addEventListener('DOMContentLoaded', function() {
+              window.addEventListener('DOMContentLoaded', () => {
                 const image = document.getElementById('image');
                 const viewer = new Viewer(image, {
                   inline: true,
@@ -1953,6 +1970,9 @@
         const undefinedCount = currentIndexOfOriginal.filter(x => x === undefined).length;
         if (undefinedCount > 0) {
           // On 'fangyibase', Draco compression unexpectedly adds 6 new vertices.
+          // I believe this problem is due to the presence of vertices unexpectedly sharing the same 3D position,
+          // due to a single reverse-duplicate faces, as documented in Notes.txt.
+          // It occurred as well on 'happy_vrip' if MinCycles _options.frac_offset was not applied to small cycles.
           console.warn(`${undefinedCount} original indices are unmapped; filling with identity mapping`);
           for (let i = 0; i < vertexCount; i++)
             if (currentIndexOfOriginal[i] === undefined) currentIndexOfOriginal[i] = i;
