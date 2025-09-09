@@ -693,8 +693,8 @@
     window.capturedFrames = 0;
     window.frameCount = 0;
 
-    const app = {
-      CONFIG: {
+    class App {
+      static CONFIG = {
         debug: false,
         model: {
           defaultModel: 'loewenfeld.octaflat.glb',
@@ -873,34 +873,36 @@
           end: { key: 'End', desc: 'Move slider to bottom',
                  onClick() { this.deactivateMorph(0.0); } },
         },
-      },
+      };
 
-      // Variables:
-      buttonConfig: {},
-      sliderValue: 1.0,
-      sliderActive: false,
-      morphState: null,
-      needsRender: false,
-      clickTarget: null,  // Record event target at mousedown, to match with target on mouseup.
-      lumicyclePhase: 0,
-      rockingPhase: 0,
-      uvGridTexture: null,
-      maxModelDim: 1.0,  // Placeholder value.
-      mesh: null,
-      octaInfo: null,
-      cameraData: null,
-      centerPoint: null,
-      lastInteractionTime: Date.now() / 1000,
-      frameTimeHistory: [],
-      frameTimeHistoryMaxLength: 10,
-      meanFrameTime: 1 / 60,
-      morphGeometryCache: {},  // Keyed by morphState.
-      lineTopologyCache: {},  // Keyed by mesh vertex count.
-      thumbnailCanvasOfTextureKey: {},
-      demoIndex: 0,
-      demoPauseDuration: null,
-      demoYawDuration: null,
-      renderCount: 0,
+      constructor() {
+        this.CONFIG = App.CONFIG;  // Creates a reference, not a copy.
+        this.buttonConfig = {};
+        this.sliderValue = 1.0;
+        this.sliderActive = false;
+        this.morphState = null;
+        this.needsRender = false;
+        this.clickTarget = null;  // Record event target at mousedown, to match with target on mouseup.
+        this.lumicyclePhase = 0;
+        this.rockingPhase = 0;
+        this.uvGridTexture = null;
+        this.maxModelDim = 1.0;  // Placeholder value.
+        this.mesh = null;
+        this.octaInfo = null;
+        this.cameraData = null;
+        this.centerPoint = null;
+        this.lastInteractionTime = Date.now() / 1000;
+        this.frameTimeHistory = [];
+        this.frameTimeHistoryMaxLength = 10;
+        this.meanFrameTime = 1 / 60;
+        this.morphGeometryCache = {};  // Keyed by morphState.
+        this.lineTopologyCache = {};  // Keyed by mesh vertex count.
+        this.thumbnailCanvasOfTextureKey = {};
+        this.demoIndex = 0;
+        this.demoPauseDuration = null;
+        this.demoYawDuration = null;
+        this.renderCount = 0;
+      }
 
       init() {
         this.mainCanvas = document.getElementById('canvas');
@@ -952,7 +954,7 @@
         this.startLoadingGridUvToSphere();
         this.loadModel();
         this.renderLoop();
-      },
+      }
 
       suppressSomeWebglWarnings() {
         const originalWarn = console.warn;
@@ -961,7 +963,7 @@
           if (/THREE\.WebGLProgram.*warning X3557: loop only executes for 1 iteration/.test(message)) return;
           originalWarn.apply(console, args);
         };
-      },
+      }
 
       parseUrlParams() {
         const searchParams = new URLSearchParams(window.location.search);
@@ -991,7 +993,7 @@
           if (paramValue !== null && id !== 'fullscreen')
             config.active = this.paramIsTrue(paramValue);
         }
-      },
+      }
 
       parseConfigOverrides(searchParams) {
         for (const [param, value] of searchParams) {
@@ -1012,7 +1014,7 @@
             console.warn(`Failed to set config parameter '${param}':`, error);
           }
         }
-      },
+      }
 
       parseValue(value) {
         if (value === 'true') return true;
@@ -1028,15 +1030,15 @@
         }
 
         return value;  // A string.
-      },
+      }
 
       paramIsTrue(paramValue) {
         return paramValue === null ? false : ['true', '1', 'yes', 'on'].includes(paramValue.toLowerCase());
-      },
+      }
 
       createElement(tag, properties={}) {
         return Object.assign(document.createElement(tag), properties);
-      },
+      }
 
       transformFileHostUrl(url) {
         let modifiedUrl = url;
@@ -1047,7 +1049,7 @@
           modifiedUrl = modifiedUrl.replace('/blob/', '/');
         }
         return modifiedUrl;
-      },
+      }
 
       updateRendererSize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -1059,7 +1061,7 @@
         this.updateButtons();
         this.updateSliderUi();
         this.requestRender();
-      },
+      }
 
       createOrbitControls() {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -1075,7 +1077,7 @@
         });
         this.controls.addEventListener('change', () => this.updateCamera());
         this.controls.addEventListener('end', () => this.requestRender());
-      },
+      }
 
       createSlider() {
         this.updateSliderUi();
@@ -1096,7 +1098,7 @@
         });
         document.addEventListener('touchend', this.endSliderDrag.bind(this));
         document.addEventListener('touchcancel', this.endSliderDrag.bind(this));
-      },
+      }
 
       getSliderDimensions() {
         const containerRect = this.sliderContainer.getBoundingClientRect();
@@ -1105,7 +1107,7 @@
         const sliderTrackHeight = trackRect.height - thumbHeight;
         const sliderTrackTop = trackRect.top + thumbHeight / 2;
         return { containerRect, trackRect, thumbHeight, sliderTrackHeight, sliderTrackTop };
-      },
+      }
 
       updateSliderGeomorphBoundaries() {
         for (const boundaryLine of this.sliderContainer.querySelectorAll('.slider-geomorph-boundary'))
@@ -1123,13 +1125,13 @@
           boundaryLine.style.top = `${boundaryTop}px`;
           this.sliderContainer.appendChild(boundaryLine);
         }
-      },
+      }
 
       setSliderValue(value) {
         this.sliderValue = Math.min(Math.max(value, 0.0), 1.0);
         this.updateSliderUi();
         this.onSliderValueChange();
-      },
+      }
 
       startSliderDrag(event) {
         if (!this.morphState) return;
@@ -1139,7 +1141,7 @@
         this.sliderActive = true;
         this.dragSlider(event);
         this.updateEdges();
-      },
+      }
 
       dragSlider(event) {
         if (!this.sliderActive) return;
@@ -1150,40 +1152,40 @@
         this.sliderValue = 1.0 - Math.min(Math.max(value0, 0.0), 1.0);
         this.updateSliderUi();
         this.onSliderValueChange();
-      },
+      }
 
       endSliderDrag() {
         this.sliderActive = false;
         this.updateEdges();
         this.setInfo();
-      },
+      }
 
       updateSliderUi() {
         const { sliderTrackHeight } = this.getSliderDimensions();
         const top = sliderTrackHeight * (1.0 - this.sliderValue);
         this.sliderThumb.style.top = `${top}px`;
-      },
+      }
 
       // These next functions spend progressively more time near the end values [0.0, 1.0].
       smoothStep(value) {
         return value * value * (3.0 - 2.0 * value);
-      },
+      }
 
       smootherStep(value) {
         return value * value * value * (value * (value * 6.0 - 15.0) + 10.0);
-      },
+      }
 
       easeInOutCubic(value) {
         return value < 0.5 ? 4 * value**3 : 1 - 4 * (1 - value)**3;
-      },
+      }
 
       easeInOutQuartic(value) {
         return value < 0.5 ? 8 * value**4 : 1 - 8 * (1 - value)**4;
-      },
+      }
 
       smoothFunction(value) {
         return this.easeInOutCubic(value);
-      },
+      }
 
       determineMorphParams() {
         if (!this.morphState) return { index: 0, influence0: 1.0, geometry: null };
@@ -1193,11 +1195,11 @@
           octahedron: this.determineOctahedronMorph.bind(this),
         }[this.morphState];
         return getMorphParams();
-      },
+      }
 
       getInfluence0() {
         return this.determineMorphParams().influence0;
-      },
+      }
 
       onSliderValueChange() {
         if (!this.mesh) return;
@@ -1213,7 +1215,7 @@
           const desiredSide = doubleSide ? THREE.DoubleSide : THREE.FrontSide;
           if (desiredSide !== currSide) this.updateMaterial();
         }
-      },
+      }
 
       createButtons() {
         this.buttonBar.innerHTML = '';
@@ -1264,7 +1266,7 @@
 
         this.buttonBar.appendChild(iconButtonContainer);
         this.updateButtons();
-      },
+      }
 
       pressButton(config, interruptDemo=false) {
         if (0) console.log('pressButton', { label: config.label, active: config.active, interruptDemo });
@@ -1281,7 +1283,7 @@
         config.onClick.call(this);
         this.updateButtons();
         this.requestRender();
-      },
+      }
 
       updateButtons() {
         for (const config of Object.values(this.buttonConfig)) {
@@ -1292,7 +1294,7 @@
         this.sliderContainer.classList.toggle('disabled', this.morphState === null);
         this.updateSliderGeomorphBoundaries();
         this.updateMorphConnector();
-      },
+      }
 
       updateMorphConnector() {
         const connector = document.getElementById('morph-connector');
@@ -1313,7 +1315,7 @@
         } else {
           connector.classList.remove('visible');
         }
-      },
+      }
 
       createLights() {
         this.ambientLight = new THREE.AmbientLight(0xffffff, 0.0);
@@ -1330,7 +1332,7 @@
           // We let the light be a child of the camera so that its position is relative to the camera view.
           this.camera.add(lightObj.light);
         }
-      },
+      }
 
       updateLights() {
         const { ambientLightIntensity } = this.CONFIG.lighting;
@@ -1354,7 +1356,7 @@
         }
 
         this.requestRender();
-      },
+      }
 
       createEventListeners() {
         window.addEventListener('resize', () => { this.updateRendererSize(); });
@@ -1399,14 +1401,14 @@
           // Simple fallback solution: just reload the page.
           window.location.reload();
         }, false);
-      },
+      }
 
       immediatelyStopCamera() {
         const oldDampingFactor = this.controls.dampingFactor;
         this.controls.dampingFactor = 1.0;  // Temporarily set to maximum damping.
         this.controls.update();
         this.controls.dampingFactor = oldDampingFactor;
-      },
+      }
 
       resetView() {
         this.immediatelyStopCamera();
@@ -1420,7 +1422,7 @@
         this.model.position.copy(this.centerPoint.clone().negate());
         this.controls.target.set(0, 0, 0);
         this.requestRender();
-      },
+      }
 
       // Extract {forward, left, up, position, zoom} from string with format 'F 0  1 0 0  0 1 0  0 0 1  0 0 0  0'.
       parseCameraString(cameraString) {
@@ -1433,14 +1435,14 @@
         const position = new THREE.Vector3(parseFloat(parts[11]), parseFloat(parts[12]), parseFloat(parts[13]));
         const zoom = parseFloat(parts[14]);
         return { forward, left, up, position, zoom };
-      },
+      }
 
       updateInfoDetails() {
         const isExpanded = this.buttonConfig.info.active;
         this.infoDiv.classList.toggle('expanded', isExpanded);
         this.infoToggle.textContent = isExpanded ? '▲' : '▼';
         if (isExpanded) this.setInfo();
-      },
+      }
 
       updateHelpWindow() {
         if (this.buttonConfig.help.active) {
@@ -1450,7 +1452,7 @@
         } else {
           this.helpOverlay.style.display = 'none';
         }
-      },
+      }
 
       createHelpContent() {
         this.helpContent.appendChild(this.createElement('div', {
@@ -1483,7 +1485,7 @@
         licenseSection.appendChild(this.createElement('div', { innerHTML: LICENSE_TEXT }));
 
         this.helpContent.appendChild(licenseSection);
-      },
+      }
 
       updateTexturesPanel() {
         if (this.buttonConfig.textures.active) {
@@ -1500,7 +1502,7 @@
           this.texturesPanel.style.display = 'none';
         }
         this.requestRender();
-      },
+      }
 
       createTextureThumbnail(map, mapType) {
         const container = this.createElement('div', {
@@ -1576,12 +1578,12 @@
         canvas.addEventListener('click', () => { this.openImageInNewTab(map, mapType); });
 
         return container;
-      },
+      }
 
       drawCanvasToCanvas(sourceCanvas, targetCanvas) {
         const context = targetCanvas.getContext('2d');
         context.drawImage(sourceCanvas, 0, 0);
-      },
+      }
 
       async generateThumbnail(map, targetCanvas, mapType) {
         if (this.CONFIG.thumbnails.useGpuDownsampling) {
@@ -1591,7 +1593,7 @@
           await this.asyncFastDownsample(map.image, targetCanvas);
         }
         return targetCanvas;
-      },
+      }
 
       fastDownsample(image, targetCanvas) {
         const targetWidth = targetCanvas.width;
@@ -1638,7 +1640,7 @@
         const finalContext = targetCanvas.getContext('2d', { alpha: true });
         finalContext.imageSmoothingEnabled = true;
         finalContext.drawImage(currentCanvas, 0, 0, targetWidth, targetHeight);
-      },
+      }
 
       asyncFastDownsample(image, targetCanvas) {
         return new Promise(resolve => {
@@ -1647,7 +1649,7 @@
             resolve();
           });
         });
-      },
+      }
 
       gpuDownsample(texture, targetCanvas, useLinearSpace) {
         if (texture.encoding !== THREE.sRGBEncoding) throw Error(`texture.encoding = ${texture.encoding}`);
@@ -1691,11 +1693,11 @@
         geometry.dispose();
         textureClone.dispose();
         renderTarget.dispose();
-      },
+      }
 
       tangentsAreInObjectSpace() {
         return Boolean(this.mesh.material?.userData?.objectSpaceNormalMap);
-      },
+      }
 
       openImageInNewTab(map, mapType) {
         const bufferInfo = this.getTextureBufferInfo(mapType);
@@ -1841,7 +1843,7 @@
         // Clean up the URL when the tab is closed (only if we created it).
         if (bufferInfo.bufferData)
           newTab.addEventListener('unload', () => URL.revokeObjectURL(url));
-      },
+      }
 
       loadModel() {
         this.loadStartTime = performance.now() / 1000;
@@ -1865,20 +1867,20 @@
             this.infoSummary.style.color = 'red';
           },
         );
-      },
+      }
 
       logAttributesOfVertex(geometry, index) {
         const vertexInfo = {};
         for (const [name, attribute] of Object.entries(geometry.attributes))
           vertexInfo[name] = Array.from({ length: attribute.itemSize }, (_, i) => attribute.getComponent(index, i));
         console.log(`Attributes of vertex ${index}:`, vertexInfo);
-      },
+      }
 
       logAttributesOfSomeVertices() {
         const { geometry } = this.mesh;
         this.logAttributesOfVertex(geometry, 0);
         this.logAttributesOfVertex(geometry, geometry.userData.actualVertexCount - 1);
-      },
+      }
 
       async loadGltf(gltf) {
         this.gltfData = gltf;
@@ -1938,7 +1940,7 @@
 
         if (this.automationMode)
           this.setupAutomation();
-      },
+      }
 
       createOriginalVertexIndexArray() {
         const { attributes } = this.mesh.geometry;
@@ -1960,7 +1962,7 @@
         }
 
         if (1) this.mesh.geometry.deleteAttribute('_original');  // Perhaps save some GPU memory.
-      },
+      }
 
       reorderVerticesToOriginalIndices() {
         if (!this.originalVertexIndexArray) return;
@@ -2017,7 +2019,7 @@
         }
 
         if (this.CONFIG.debug) console.log('Vertices reordered to original indices');
-      },
+      }
 
       createParentVertexIndexArray() {
         const { attributes } = this.mesh.geometry;
@@ -2049,7 +2051,7 @@
         }
 
         if (1) this.mesh.geometry.deleteAttribute('_parent');  // Perhaps save some GPU memory.
-      },
+      }
 
       simplifyOriginalMesh() {
         const { presimplificationVertexCount } = this.CONFIG.model;
@@ -2061,7 +2063,7 @@
         this.truncateGeometryToActualVertexCount(newGeometry);
         if (0) geometry.dispose();  // Deletion of GPU buffers is unnecessary because mesh is not yet rendered.
         this.mesh.geometry = newGeometry;
-      },
+      }
 
       prepareSimplification(geometry, desiredVertexCount) {
         if (!this.parentVertexIndexArray) throw Error('Cannot simplify mesh geometry without parentVertexIndexArray');
@@ -2093,7 +2095,7 @@
           destIndexArray[vertexIndex] = destIndexArray[destIndexArray[vertexIndex]];
 
         return { vertexCount, newVertexCount, destIndexArray };
-      },
+      }
 
       samePosition(geometry, vertexIndex1, vertexIndex2) {
         const { position } = geometry.attributes;
@@ -2102,7 +2104,7 @@
             return false;
         }
         return true;
-      },
+      }
 
       computeSimplifiedGeometry(geometry, desiredVertexCount) {
         const prepare = this.prepareSimplification(geometry, desiredVertexCount);
@@ -2127,7 +2129,7 @@
         newGeometry.userData.actualVertexCount = newVertexCount;
 
         return newGeometry;
-      },
+      }
 
       computeGeomorph(fineGeometry, desiredVertexCount) {
         const prepare = this.prepareSimplification(fineGeometry, desiredVertexCount);
@@ -2155,7 +2157,7 @@
         }
 
         return morphGeometry;
-      },
+      }
 
       truncateGeometryToActualVertexCount(geometry) {
         const vertexCount = geometry.userData.actualVertexCount;
@@ -2168,7 +2170,7 @@
           newAttribute.normalized = attribute.normalized;
           geometry.setAttribute(name, newAttribute);
         }
-      },
+      }
 
       computeMeshExtentsAndCenterPoint() {
         this.bbox = new THREE.Box3().setFromObject(this.model);
@@ -2184,7 +2186,7 @@
             this.cameraData.position, this.cameraData.forward, this.centerPoint.x, this.centerPoint.z,
           );
         }
-      },
+      }
 
       computeCentroidAndRmsRadius(geometry) {
         const positions = geometry.attributes.position;
@@ -2222,7 +2224,7 @@
         const rmsRadius = Math.sqrt(Math.max(0, meanSquaredDistFromCentroid));
 
         return { centroid, rmsRadius };
-      },
+      }
 
       computeCenterY(cameraPosition, cameraForward, centerX, centerZ) {
         // Compute parameter t for the point on the camera forward ray that is closest to the vertical center line.
@@ -2232,7 +2234,7 @@
         if (!denominator) throw Error('Zero denominator');
         const t = numerator / denominator;
         return cameraPosition.y + t * cameraForward.y;
-      },
+      }
 
       initializeMaterial() {
         const { material } = this.mesh;
@@ -2257,7 +2259,7 @@
         }
 
         this.mesh.userData.originalMaterial = material.clone();
-      },
+      }
 
       patchVertexShaderToSupportUvMorph(mesh) {
         const { geometry, material } = mesh;
@@ -2303,7 +2305,7 @@
           material.onBeforeCompile = (_shader) => {};
         }
         material.needsUpdate = true;
-      },
+      }
 
       downsampleTexturesToGlMaxSize(textureMap) {
         const gl = this.renderer.getContext();
@@ -2327,7 +2329,7 @@
           textureMap.image = canvas;
           console.log(`Resized texture to ${newWidth}x${newHeight}`);
         }
-      },
+      }
 
       featherTextureBoundaries(textureMap) {
         // For each of the four image boundaries, we must establish mirror symmetry within the pixels on the boundary.
@@ -2378,7 +2380,7 @@
         context.putImageData(imageData, 0, 0);
         textureMap.image = context.canvas;
         textureMap.needsUpdate = true;
-      },
+      }
 
       initializeTexture(textureMap, mapType) {
         if (textureMap) {
@@ -2399,7 +2401,7 @@
           button.classList.remove('active');
           button.title = `This model has no ${mapType} map`;
         }
-      },
+      }
 
       updateMaterial() {
         if (!this.model) return;
@@ -2453,7 +2455,7 @@
         this.patchVertexShaderToSupportUvMorph(this.mesh);
         this.updateLights();
         this.requestRender();
-      },
+      }
 
       getTextureBufferInfo(mapType) {
         const json = this.gltfData?.parser?.json;
@@ -2492,7 +2494,7 @@
         }
 
         return null;
-      },
+      }
 
       createUvGridTexture() {
         const { textureSize, checkerboardTileSizeInPixels: tileSize } = this.CONFIG.rendering.uvGrid;
@@ -2524,13 +2526,13 @@
         this.uvGridTexture.wrapS = THREE.ClampToEdgeWrapping;
         this.uvGridTexture.wrapT = THREE.ClampToEdgeWrapping;
         this.uvGridTexture.flipY = false;  // Default is true!  Set to false to match textures loaded from GLTF.
-      },
+      }
 
       initializeCamera() {
         const fov = this.camera.fov * (TAU / 360);
         this.camera.position.z = Math.abs(this.maxModelDim / 2 / Math.tan(fov / 2)) * 1.5;
         this.updateCamera();
-      },
+      }
 
       updateCamera() {
         if (!this.mesh) return;
@@ -2543,15 +2545,15 @@
         this.camera.updateProjectionMatrix();
         if (this.infoIsExpanded()) this.setInfo();
         this.requestRender();
-      },
+      }
 
       infoIsExpanded() {
         return this.infoDiv.classList.contains('expanded');
-      },
+      }
 
       formatWithUnderscores(num) {
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '_');
-      },
+      }
 
       formatNum(value) {
         if (value > 19_500_000) return `${(value / 1e6).toFixed(0)} M`;
@@ -2559,7 +2561,7 @@
         if (value > 19_500) return `${(value / 1e3).toFixed(0)} k`;
         if (value > 950) return `${(value / 1e3).toFixed(1)} k`;
         return `${value} `;
-      },
+      }
 
       setInfo() {
         if (!this.mesh) return;
@@ -2627,7 +2629,7 @@
         }
         const newText = infoEntries.join('\n');
         if (newText !== this.infoDetails.textContent) this.infoDetails.textContent = newText;
-      },
+      }
 
       createWireframeMesh() {  // Uses a mesh with a special wireframeMaterial.
         const { geometry } = this.mesh;
@@ -2635,7 +2637,7 @@
         const wireframeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true });
         this.wireframeMesh = new THREE.Mesh(geometry, wireframeMaterial);
         this.wireframeMesh.position.copy(this.mesh.getWorldPosition(new THREE.Vector3()));
-      },
+      }
 
       getOrCreateLineTopology(meshGeometry) {
         const vertexCount = meshGeometry.userData.actualVertexCount;
@@ -2649,7 +2651,7 @@
           this.lineTopologyCache[vertexCount] = topologyData;
         }
         return topologyData;
-      },
+      }
 
       computeEdgeVertexIndices(meshGeometry) {
         const meshIndices = meshGeometry.index.array;
@@ -2697,7 +2699,7 @@
         }
 
         return edgeVertexIndices;
-      },
+      }
 
       createLineEdges() {  // Creates line segments along the (unoriented) edges of the mesh.
         const lineMaterial = new LineMaterial({
@@ -2711,14 +2713,14 @@
         this.lineEdges = new LineSegments2(new LineSegmentsGeometry(), lineMaterial);  // Initially empty.
         this.lineEdges.position.copy(this.mesh.getWorldPosition(new THREE.Vector3()));
         this.updateLineTopology();
-      },
+      }
 
       updateLineTopology() {
         const { lineGeometry, edgeVertexIndices } = this.getOrCreateLineTopology(this.mesh.geometry);
         this.lineEdges.geometry = lineGeometry;
         this.currentEdgeVertexIndices = edgeVertexIndices;
         this.updateLinePositions();
-      },
+      }
 
       updateLinePositions() {
         // See https://github.com/mrdoob/three.js/blob/master/examples/jsm/lines/LineSegmentsGeometry.js
@@ -2748,7 +2750,7 @@
         }
 
         this.lineEdges.geometry.setPositions(edgePositions);
-      },
+      }
 
       async preUploadLineEdgesAsync() {
         if (!this.mesh) return;
@@ -2768,12 +2770,12 @@
             resolve();
           });
         });
-      },
+      }
 
       stopDemoIfOngoing() {
         if (this.buttonConfig.demo.active)
           this.pressButton(this.buttonConfig.demo);
-      },
+      }
 
       updateDemo() {
         // Reset all state.
@@ -2794,14 +2796,14 @@
         } else {
           this.demoNotification.classList.remove('show');
         }
-      },
+      }
 
       showDemoNotification() {
         this.demoNotification.classList.add('show');
         setTimeout(() => {
           this.demoNotification.classList.remove('show');
         }, 3000);
-      },
+      }
 
       processDemoStage() {
         const { keySequences } = this.CONFIG.demo;
@@ -2828,7 +2830,7 @@
         this.demoIndex += 1;
         if (this.demoIndex === keySequences.length)
           this.demoIndex = 1;  // Skip the special initialization sequence at index 0.
-      },
+      }
 
       updateEdges() {
         if (!this.mesh) return;
@@ -2852,17 +2854,17 @@
           if (this.lineEdges?.parent) this.scene.remove(this.lineEdges);
         }
         this.requestRender();
-      },
+      }
 
       updateUvGrid() {
         this.updateMaterial();
         this.updateTexturesPanel();
-      },
+      }
 
       updateLumicycle() {
         this.lumicyclePhase = 0;
         this.updateLights();
-      },
+      }
 
       toggleFullscreen() {
         if (!document.fullscreenElement) {  // Enter fullscreen.
@@ -2880,7 +2882,7 @@
         }
         // Rerender after transition.
         setTimeout(() => { this.requestRender(); }, 100);
-      },
+      }
 
       updateReset() {
         if (!this.buttonConfig.demo.active) {
@@ -2888,7 +2890,7 @@
           if (this.buttonConfig.rocking.active) this.pressButton(this.buttonConfig.rocking);
         }
         this.resetView();
-      },
+      }
 
       // Read `this.gridUvToSphere`, a 2D table of sphere points, used to map (u, v) coordinates to the sphere.
       startLoadingGridUvToSphere(egrid=128) {
@@ -2938,7 +2940,7 @@
             console.error('Failed to load sphere grid:', error);
             throw error;
           });
-      },
+      }
 
       /*
        * Sample an array of points on the sphere using bilinear interpolation.
@@ -2985,7 +2987,7 @@
         }
 
         return pointArray;
-      },
+      }
 
       octahedronMapFromUv(uvAttribute, resultArray=null, flatnessFactor=0.01) {
         const pointCount = uvAttribute.count;
@@ -3014,13 +3016,13 @@
         }
 
         return pointArray;
-      },
+      }
 
       activateMorph() {
         this.morphDuration = this.CONFIG.morph[this.morphState].duration;
         this.morphTime = 0.0;
         this.morphTargetValue = this.sliderValue < 0.5 ? 1.0 : 0.0;
-      },
+      }
 
       deactivateMorph(targetValue) {
         if (!this.morphState) return;
@@ -3028,7 +3030,7 @@
         this.morphDuration = this.CONFIG.morph[this.morphState].exitDuration;
         this.morphTime = 0.0;
         this.morphTargetValue = targetValue;
-      },
+      }
 
       shallowCloneGeometry(geometry) {
         // https://threejs.org/docs/#api/en/core/BufferGeometry.morphAttributes
@@ -3054,7 +3056,7 @@
         }
 
         return newGeometry;
-      },
+      }
 
       updateGeometry(geometry) {
         if (!geometry) throw new Error('?');
@@ -3069,7 +3071,7 @@
           this.wireframeMesh.updateMorphTargets();
         }
         this.setInfo();
-      },
+      }
 
       updateMorph(newMorphState) {
         if (newMorphState !== this.morphState) {
@@ -3091,7 +3093,7 @@
         this.onSliderValueChange();
         this.updateEdges();
         this.updateButtons();
-      },
+      }
 
       updateGeomorphs() {
         if (!this.geomorphs) {
@@ -3120,7 +3122,7 @@
         }
         if (this.geomorphs.length)
           this.updateMorph('geomorphs');
-      },
+      }
 
       determineGeomorph() {
         const numGeomorphs = this.geomorphs.length;
@@ -3129,7 +3131,7 @@
         const influence0 = scaledValue - index;
         const geometry = this.geomorphs[index];
         return { index, influence0, geometry };
-      },
+      }
 
       getCachedDomainMorphGeometry(morphState, mapFromUv) {
         let geometry = this.morphGeometryCache[morphState];
@@ -3148,24 +3150,24 @@
           geometry.morphAttributes.position = [new THREE.BufferAttribute(new Float32Array(domainPositions), 3)];
         }
         return geometry;
-      },
+      }
 
       updateSphere() {
         this.updateMorph('sphere');
-      },
+      }
 
       determineSphereMorph() {
         const index = 0;
         const influence0 = this.smoothFunction(1.0 - this.sliderValue);
         const geometry = this.getCachedDomainMorphGeometry('sphere', this.sphereMapFromUv.bind(this));
         return { index, influence0, geometry };
-      },
+      }
 
       updateOctahedron() {
         if (!this.octahedronSequence)
           this.octahedronSequence = this.createOctahedronStage2UnfoldingSequence();
         this.updateMorph('octahedron');
-      },
+      }
 
       determineOctahedronMorph() {
         if (this.sliderValue > 0.5) {
@@ -3182,7 +3184,7 @@
         const influence0 = scaledValue - index;
         const geometry = this.octahedronSequence[index];
         return { index, influence0, geometry, stage: 2, doubleSide: true };
-      },
+      }
 
       createOctahedronStage2UnfoldingSequence(steps=10) {
         const unfoldingMorphs = [];
@@ -3219,7 +3221,7 @@
         }
 
         return unfoldingMorphs;
-      },
+      }
 
       // Compute vertex positions for a given unfolding progress (0.0: octaflat, 1.0: square).
       computeOctahedronUnfoldingPositions(progress) {
@@ -3256,13 +3258,13 @@
         }
 
         return positions;
-      },
+      }
 
       computeMean(array) {
         if (array.length === 0) return NaN;
         const sum = array.reduce((acc, value) => acc + value, 0);
         return sum / array.length;
-      },
+      }
 
       computeMeanFrameTime() {
         if (this.automationMode) {
@@ -3279,7 +3281,7 @@
 
           this.meanFrameTime = this.computeMean(this.frameTimeHistory);
         }
-      },
+      }
 
       requestRender() {
         this.lastInteractionTime = Date.now() / 1000;
@@ -3287,7 +3289,7 @@
           this.needsRender = true;
           requestAnimationFrame(() => this.renderLoop());
         }
-      },
+      }
 
       setupAutomation() {
         this.infoDiv.style.display = 'none';
@@ -3303,7 +3305,34 @@
         window.puppeteerReady = true;
         console.log('AUTOMATION_READY');
         this.requestRender();
-      },
+      }
+
+      performAutomation() {
+        if (window.puppeteerCallback) {
+          const frameNumber = window.capturedFrames;
+          const frameData = this.renderer.domElement.toDataURL('image/png');
+          const totalFrames = window.frameCount;
+          window.puppeteerCallback({ frameNumber, frameData, totalFrames });
+        }
+
+        window.capturedFrames += 1;
+        if (window.capturedFrames === window.frameCount) {
+          this.automationInProgress = false;
+          console.log('AUTOMATION_COMPLETE');
+        }
+      }
+
+      applyLumicycle(deltaTime) {
+        const { lumicyclePeriod } = this.CONFIG.lighting;
+        this.lumicyclePhase += (TAU / lumicyclePeriod) * deltaTime;
+        this.updateLights();
+      }
+
+      applyRocking(deltaTime) {
+        const { rockingPeriod } = this.CONFIG.camera;
+        const rockingPhaseDelta = (TAU / rockingPeriod) * deltaTime;
+        this.applyRockingRotation(rockingPhaseDelta);
+      }
 
       applyRockingRotation(rockingPhaseDelta) {
         const previousRockingPhase = this.rockingPhase;
@@ -3314,7 +3343,48 @@
         // We perform rocking about the Y axis through the origin (which should equal this.camera.target).
         const rotationMatrix = new THREE.Matrix4().makeRotationY(angle);
         this.camera.position.applyMatrix4(rotationMatrix);
-      },
+      }
+
+      applyPause(deltaTime) {
+        this.demoPauseTime += deltaTime;
+        if (this.demoPauseTime >= this.demoPauseDuration) {
+          this.demoPauseDuration = null;  // End the pause.
+          this.processDemoStage();
+        }
+      }
+
+      applyYaw(deltaTime) {
+        const f = (time) => this.smoothStep(time / this.demoYawDuration) * this.demoYawAngle;
+        const yawAnglePrev = f(this.demoYawTime);
+        const yawAngleCurr = f(Math.min(this.demoYawTime + deltaTime, this.demoYawDuration));
+        const yawDeltaAngle = yawAngleCurr - yawAnglePrev;
+        const rotationMatrix = new THREE.Matrix4().makeRotationY(yawDeltaAngle);
+        this.camera.position.applyMatrix4(rotationMatrix);
+        this.demoYawTime += deltaTime;
+        if (this.demoYawTime >= this.demoYawDuration) {
+          this.demoYawDuration = null;  // End the yaw.
+          this.processDemoStage();
+        }
+      }
+
+      applyMorph(deltaTime) {
+        const remainingTime = this.morphDuration - this.morphTime;
+        const fraction = Math.min(Math.max(deltaTime / remainingTime, 0.0), 1.0);
+        const newValue = this.sliderValue + (this.morphTargetValue - this.sliderValue) * fraction;
+        this.setSliderValue(newValue);
+        this.morphTime += deltaTime;
+        if (this.morphTime >= this.morphDuration) {
+          if (this.buttonConfig[this.morphState].active) {
+            this.morphTime = 0;
+            this.morphTargetValue = 1.0 - this.sliderValue;
+            if (this.buttonConfig.demo.active) this.processDemoStage();
+          } else {
+            this.morphDuration = 0.0;
+            this.updateEdges();
+            this.setInfo();
+          }
+        }
+      }
 
       renderLoop() {
         if (!this.needsRender) return;
@@ -3323,54 +3393,19 @@
         const deltaTime = this.meanFrameTime;
 
         if (this.model) {
-          if (this.buttonConfig.lumicycle.active) {
-            const { lumicyclePeriod } = this.CONFIG.lighting;
-            this.lumicyclePhase += (TAU / lumicyclePeriod) * deltaTime;
-            this.updateLights();
-          }
-          if (this.buttonConfig.rocking.active) {
-            const { rockingPeriod } = this.CONFIG.camera;
-            const rockingPhaseDelta = (TAU / rockingPeriod) * deltaTime;
-            this.applyRockingRotation(rockingPhaseDelta);
-          }
-          if (this.buttonConfig.demo.active && this.demoPauseDuration) {
-            this.demoPauseTime += deltaTime;
-            if (this.demoPauseTime >= this.demoPauseDuration) {
-              this.demoPauseDuration = null;  // End the pause.
-              this.processDemoStage();
-            }
-          } else if (this.buttonConfig.demo.active && this.demoYawDuration) {
-            const f = (time) => this.smoothStep(time / this.demoYawDuration) * this.demoYawAngle;
-            const yawAnglePrev = f(this.demoYawTime);
-            const yawAngleCurr = f(Math.min(this.demoYawTime + deltaTime, this.demoYawDuration));
-            const yawDeltaAngle = yawAngleCurr - yawAnglePrev;
-            const rotationMatrix = new THREE.Matrix4().makeRotationY(yawDeltaAngle);
-            this.camera.position.applyMatrix4(rotationMatrix);
-            this.demoYawTime += deltaTime;
-            if (this.demoYawTime >= this.demoYawDuration) {
-              this.demoYawDuration = null;  // End the yaw.
-              this.processDemoStage();
-            }
-          } else if (this.morphDuration) {
-            const remainingTime = this.morphDuration - this.morphTime;
-            const fraction = Math.min(Math.max(deltaTime / remainingTime, 0.0), 1.0);
-            const newValue = this.sliderValue + (this.morphTargetValue - this.sliderValue) * fraction;
-            this.setSliderValue(newValue);
-            this.morphTime += deltaTime;
-            if (this.morphTime >= this.morphDuration) {
-              if (this.buttonConfig[this.morphState].active) {
-                this.morphTime = 0;
-                this.morphTargetValue = 1.0 - this.sliderValue;
-                if (this.buttonConfig.demo.active) this.processDemoStage();
-              } else {
-                this.morphDuration = 0.0;
-                this.updateEdges();
-                this.setInfo();
-              }
-            }
-          } else if (this.buttonConfig.demo.active) {
+          if (this.buttonConfig.lumicycle.active)
+            this.applyLumicycle(deltaTime);
+          if (this.buttonConfig.rocking.active)
+            this.applyRocking(deltaTime);
+
+          if (this.buttonConfig.demo.active && this.demoPauseDuration)
+            this.applyPause(deltaTime);
+          else if (this.buttonConfig.demo.active && this.demoYawDuration)
+            this.applyYaw(deltaTime);
+          else if (this.morphDuration)
+            this.applyMorph(deltaTime);
+          else if (this.buttonConfig.demo.active)
             this.processDemoStage();
-          }
         }
 
         const controlsChanged = this.controls.update();  // True if damping or other internal state changes occurred.
@@ -3380,19 +3415,7 @@
         this.renderCount += 1;
         if (0 && this.renderCount % 60 === 0) console.log(`Rendered ${this.renderCount} frames`);
 
-        if (this.automationMode && this.automationInProgress) {
-          if (window.puppeteerCallback) {
-            const frameData = this.renderer.domElement.toDataURL('image/png');
-            const frameNumber = window.capturedFrames, totalFrames = window.frameCount;
-            window.puppeteerCallback({ frameNumber, frameData, totalFrames });
-          }
-
-          window.capturedFrames += 1;
-          if (window.capturedFrames === window.frameCount) {
-            this.automationInProgress = false;
-            console.log('AUTOMATION_COMPLETE');
-          }
-        }
+        if (this.automationMode && this.automationInProgress) this.performAutomation();
 
         const timeSinceLastInteraction = Date.now() / 1000 - this.lastInteractionTime;
         const thresholdSeconds = 2.0;
@@ -3405,11 +3428,12 @@
           requestAnimationFrame(() => this.renderLoop());
         else
           this.needsRender = false;  // We can stop rendering.
-      },
-    };
+      }
+    }
 
-    window.addEventListener('load', () => app.init());
+    const app = new App();
     window.app = app;
+    window.addEventListener('load', () => app.init());
   </script>
 </body>
 </html>
