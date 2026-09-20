@@ -6,6 +6,7 @@ node_modules/
 data/*.high_quality.glb
 
 .npmrc
+CLAUDE.md
 create_index.py
 create_table.py
 create_thumbnail.js
