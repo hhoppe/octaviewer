@@ -1995,7 +1995,7 @@
         // Reorder all vertex attributes.  Requires non-interleaved attributes buffer.
         for (const attribute of Object.values(geometry.attributes)) {
           const { itemSize, array } = attribute;
-          const newArray = new array.constructor(array.length);
+          const newArray = new array.constructor(array.length);  // eslint-disable-line new-cap
 
           for (let originalIndex = 0; originalIndex < vertexCount; originalIndex++) {
             const currentIndex = currentIndexOfOriginal[originalIndex];
