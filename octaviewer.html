@@ -597,6 +597,7 @@
     </div>
   </div>
 
+  <!-- The three.js version also appears in the Draco decoder path in loadModel(); update all three together. -->
   <script type="importmap">
     {
       "imports": {
@@ -1850,7 +1851,10 @@
         const loader = new GLTFLoader();
 
         const dracoLoader = new DRACOLoader();
-        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+        // Use the decoder bundled with three.js, at the same version as the importmap.  The unversioned
+        // gstatic.com/draco/v1 path changed in Oct 2026, and browsers that had cached the previous wrapper
+        // and wasm separately mixed versions, so decoding failed.
+        dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.179.1/examples/jsm/libs/draco/gltf/');
         loader.setDRACOLoader(dracoLoader);
 
         loader.load(
