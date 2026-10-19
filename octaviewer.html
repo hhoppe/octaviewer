@@ -5,6 +5,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="darkreader-lock" content="The page adapts to the dark color scheme itself.">
   <title>Octaviewer</title>
   <!--link rel="icon" type="image/svg+xml" href="favicon.svg"-->
   <link rel="icon" type="image/png" href="favicon.png">
@@ -69,6 +70,12 @@
       margin: 0;
       overflow: hidden;
       font-family: Arial, sans-serif;
+      background: hsl(0, 0%, 96%);  /* Shown until the first frame renders; then set by applyTheme(). */
+    }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: hsl(0, 0%, 14%);
+      }
     }
     #canvas {
       display: block;
@@ -737,9 +744,12 @@
         },
         rendering: {
           antialias: true,
+          theme: 'auto',  // 'auto' (follow the system color scheme), 'light', or 'dark'.
           background: 'hsl(0, 0%, 96%)',  // Or 0xf5f5f5 or 'rgb(245, 245, 245)'.
+          backgroundDark: 'hsl(0, 0%, 14%)',
           edges: {
             color: 0x000000,
+            colorDark: 0x000000,
             linewidth: 0.5,  // In pixel width; useful for high-DPI displays.
           },
           uvGrid: {
@@ -934,7 +944,11 @@
         this.suppressSomeWebglWarnings();
         this.parseUrlParams();
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(this.CONFIG.rendering.background);
+        this.applyTheme();
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+          this.applyTheme();
+          this.requestRender();
+        });
 
         const fov = this.CONFIG.camera.defaultFov;
         this.camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 0.01, 2000);
@@ -955,6 +969,25 @@
         this.startLoadingGridUvToSphere();
         this.loadModel();
         this.renderLoop();
+      }
+
+      isDarkTheme() {
+        const { theme } = this.CONFIG.rendering;
+        return theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      }
+
+      getEdgeColor() {
+        const { edges } = this.CONFIG.rendering;
+        return this.isDarkTheme() ? edges.colorDark : edges.color;
+      }
+
+      applyTheme() {
+        const { rendering } = this.CONFIG;
+        const background = this.isDarkTheme() ? rendering.backgroundDark : rendering.background;
+        this.scene.background = new THREE.Color(background);
+        document.body.style.background = this.scene.background.getStyle();
+        this.wireframeMesh?.material.color.set(this.getEdgeColor());
+        this.lineEdges?.material.color.set(this.getEdgeColor());
       }
 
       suppressSomeWebglWarnings() {
@@ -2638,7 +2671,7 @@
       createWireframeMesh() {  // Uses a mesh with a special wireframeMaterial.
         const { geometry } = this.mesh;
         // As documented in Three.js, "wireframeLinewidth" is ignored on most platforms.
-        const wireframeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000, wireframe: true });
+        const wireframeMaterial = new THREE.MeshBasicMaterial({ color: this.getEdgeColor(), wireframe: true });
         this.wireframeMesh = new THREE.Mesh(geometry, wireframeMaterial);
         this.wireframeMesh.position.copy(this.mesh.getWorldPosition(new THREE.Vector3()));
       }
@@ -2707,7 +2740,7 @@
 
       createLineEdges() {  // Creates line segments along the (unoriented) edges of the mesh.
         const lineMaterial = new LineMaterial({
-          color: this.CONFIG.rendering.edges.color,
+          color: this.getEdgeColor(),
           linewidth: this.CONFIG.rendering.edges.linewidth,
           resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
           dashed: false,
